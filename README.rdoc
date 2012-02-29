@@ -1,7 +1,5 @@
 = rubyXL
 
-== This version was forked from http://github.com/gilt/rubyXL for performance improvements.
-
 == To Install:
   gem install rubyXL
 
@@ -193,5 +191,6 @@ Take a look at the files in spec/lib/ for rspecs on most methods
 
 == Copyright
 
-Copyright (c) 2012 Matt Olson. See LICENSE.txt for further details.
-
+Copyright (c) 2012 Matt Olson. See LICENSE.txt for further details. Much of the work was
+done by Vivek Bhagwat et. al. This version was forked from http://github.com/gilt/rubyXL
+in order to improve performance.

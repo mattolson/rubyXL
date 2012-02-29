@@ -1,5 +1,7 @@
 = rubyXL
 
+== This version was forked from http://github.com/gilt/rubyXL for performance improvements.
+
 == To Install:
   gem install rubyXL
 
@@ -8,7 +10,6 @@
 
 === Parsing an existing workbook
   workbook = RubyXL::Parser.parse("path/to/Excel/file.xlsx")
-
 
 === Creating a new Workbook
   workbook = RubyXL::Workbook.new
@@ -192,6 +193,5 @@ Take a look at the files in spec/lib/ for rspecs on most methods
 
 == Copyright
 
-Copyright (c) 2011 Vivek Bhagwat. See LICENSE.txt for
-further details.
+Copyright (c) 2012 Matt Olson. See LICENSE.txt for further details.
 

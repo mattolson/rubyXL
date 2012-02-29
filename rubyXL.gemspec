@@ -4,14 +4,14 @@
 # -*- encoding: utf-8 -*-
 
 Gem::Specification.new do |s|
-  s.name = %q{rubyXL}
-  s.version = "1.2.5"
+  s.name = "rubyXL"
+  s.version = "2.0.0"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
-  s.authors = ["Vivek Bhagwat"]
-  s.date = %q{2012-01-25}
-  s.description = %q{rubyXL is a gem which allows the parsing, creation, and manipulation of Microsoft Excel (.xlsx/.xlsm) Documents}
-  s.email = %q{bhagwat.vivek@gmail.com}
+  s.authors = ["Matt Olson", "Vivek Bhagwat"]
+  s.date = "2012-02-29"
+  s.description = "This version was forked from http://github.com/gilt/rubyXL for performance improvements."
+  s.email = ["matt@frac.tl", "bhagwat.vivek@gmail.com"]
   s.extra_rdoc_files = [
     "LICENSE.txt",
     "README.rdoc"
@@ -52,14 +52,13 @@ Gem::Specification.new do |s|
     "spec/lib/workbook_spec.rb",
     "spec/lib/worksheet_spec.rb"
   ]
-  s.homepage = %q{http://github.com/gilt/rubyXL}
+  s.homepage = "http://github.com/mattolson/rubyXL"
   s.licenses = ["MIT"]
   s.require_paths = ["lib"]
-  s.rubygems_version = %q{1.3.7}
-  s.summary = %q{rubyXL is a gem which allows the parsing, creation, and manipulation of Microsoft Excel (.xlsx/.xlsm) Documents}
+  s.rubygems_version = "1.8.10"
+  s.summary = "rubyXL is a gem which allows the parsing, creation, and manipulation of Microsoft Excel (.xlsx/.xlsm) Documents"
 
   if s.respond_to? :specification_version then
-    current_version = Gem::Specification::CURRENT_SPECIFICATION_VERSION
     s.specification_version = 3
 
     if Gem::Version.new(Gem::VERSION) >= Gem::Version.new('1.2.0') then

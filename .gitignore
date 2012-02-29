@@ -2,3 +2,5 @@
 *.html
 *.gem
 lib/tests/
+.rvmrc
+

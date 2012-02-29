@@ -302,8 +302,8 @@ module RubyXL
     
     def Parser.parse_xml(name, path)
       # figure out parse options
-      parse_options = Nokogiri::ParseOptions::DEFAULT_XML
-      parse_options |= Nokogiri::ParseOptions::COMPACT if @read_only
+      parse_options = Nokogiri::XML::ParseOptions::DEFAULT_XML
+      parse_options |= Nokogiri::XML::ParseOptions::COMPACT if @read_only
 
       # Open, parse, and store it
       if File.exist?(path)

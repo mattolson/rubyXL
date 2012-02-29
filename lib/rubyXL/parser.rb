@@ -6,8 +6,9 @@ require File.expand_path(File.join(File.dirname(__FILE__),'Hash'))
 module RubyXL
 
   class Parser
-    attr_reader :data_only, :num_sheets
+    attr_reader :data_only, :read_only, :num_sheets
     @@parsed_column_hash ={}
+    
     # converts cell string (such as "AA1") to matrix indices
     def Parser.convert_to_index(cell_string)
       index = Array.new(2)
@@ -39,9 +40,13 @@ module RubyXL
 
 
     # data_only allows only the sheet data to be parsed, so as to speed up parsing
-    # However, using this option will result in date-formatted cells being interpreted as numbers
-    def Parser.parse(file_path, data_only=false)
+    #   However, using this option will result in date-formatted cells being interpreted as numbers
+    # read_only disables modification or writing of the file, but results in a much
+    #   lower memory footprint
+    def Parser.parse(file_path, data_only=false, read_only=false)
       @data_only = data_only
+      @read_only = read_only
+      
       files = Parser.decompress(file_path)
       wb = Parser.fill_workbook(file_path, files)
 
@@ -314,13 +319,22 @@ module RubyXL
 
       files = Hash.new
 
-      files['app'] = Nokogiri::XML.parse(File.open(File.join(dir_path,'docProps','app.xml'),'r'))
-      files['core'] = Nokogiri::XML.parse(File.open(File.join(dir_path,'docProps','core.xml'),'r'))
+      File.open(File.join(dir_path,'docProps','app.xml'), 'r') do |f|
+        files['app'] = Nokogiri::XML.parse(f)
+      end
+      
+      File.open(File.join(dir_path,'docProps','core.xml'), 'r') do |f|
+        files['core'] = Nokogiri::XML.parse(f)
+      end
 
-      files['workbook'] = Nokogiri::XML.parse(File.open(File.join(dir_path,'xl','workbook.xml'),'r'))
+      File.open(File.join(dir_path,'xl','workbook.xml'), 'r') do |f|
+        files['workbook'] = Nokogiri::XML.parse(f)
+      end
 
-      if(File.exist?(File.join(dir_path,'xl','sharedStrings.xml')))
-        files['sharedString'] = Nokogiri::XML.parse(File.open(File.join(dir_path,'xl','sharedStrings.xml'),'r'))
+      if File.exist?(File.join(dir_path,'xl','sharedStrings.xml'))
+        File.open(File.join(dir_path,'xl','sharedStrings.xml'), 'r') do |f|
+          files['sharedString'] = Nokogiri::XML.parse(f)
+        end
       end
 
       unless @data_only
@@ -332,13 +346,17 @@ module RubyXL
           dir = Dir.new(ext_links_path).entries.reject {|f| [".", "..", ".DS_Store", "_rels"].include? f}
 
           dir.each_with_index do |link,i|
-            files['externalLinks'][i+1] = File.read(File.join(ext_links_path,link))
+            File.open(File.join(ext_links_path,link), 'r') do |f|
+              files['externalLinks'][i+1] = f.read
+            end
           end
 
           if File.directory?(File.join(ext_links_path,'_rels'))
             dir = Dir.new(File.join(ext_links_path,'_rels')).entries.reject{|f| [".","..",".DS_Store"].include? f}
             dir.each_with_index do |rel,i|
-              files['externalLinks']['rels'][i+1] = File.read(File.join(ext_links_path,'_rels',rel))
+              File.open(File.join(ext_links_path,'_rels',rel), 'r') do |f|
+                files['externalLinks']['rels'][i+1] = f.read
+              end
             end
           end
         end
@@ -349,7 +367,9 @@ module RubyXL
 
           dir = Dir.new(drawings_path).entries.reject {|f| [".", "..", ".DS_Store"].include? f}
           dir.each_with_index do |draw,i|
-            files['drawings'][i+1] = File.read(File.join(drawings_path,draw))
+            File.open(File.join(drawings_path,draw), 'r') do |f|
+              files['drawings'][i+1] = f.read
+            end
           end
         end
 
@@ -360,7 +380,9 @@ module RubyXL
           dir = Dir.new(printer_path).entries.reject {|f| [".","..",".DS_Store"].include? f}
 
           dir.each_with_index do |print, i|
-            files['printerSettings'][i+1] = File.open(File.join(printer_path,print), 'rb').read
+            File.open(File.join(printer_path,print), 'rb') do |f|
+              files['printerSettings'][i+1] = f.read
+            end
           end
         end
 
@@ -370,25 +392,32 @@ module RubyXL
 
           dir = Dir.new(worksheet_rels_path).entries.reject {|f| [".","..",".DS_Store"].include? f}
           dir.each_with_index do |rel, i|
-            files['worksheetRels'][i+1] = File.read(File.join(worksheet_rels_path,rel))
+            File.open(File.join(worksheet_rels_path,rel), 'r') do |f|
+              files['worksheetRels'][i+1] = f.read
+            end
           end
         end
 
         if File.exist?(File.join(dir_path,'xl','vbaProject.bin'))
-          files['vbaProject'] = File.open(File.join(dir_path,"xl","vbaProject.bin"),'rb').read
+          File.open(File.join(dir_path,"xl","vbaProject.bin"), 'rb') do |f|
+            files['vbaProject'] = f.read
+          end
         end
 
-        files['styles'] = Nokogiri::XML.parse(File.open(File.join(dir_path,'xl','styles.xml'),'r'))
+        File.open(File.join(dir_path,'xl','styles.xml'), 'r') do |f|
+          files['styles'] = Nokogiri::XML.parse(f)
+        end
       end
 
-      @num_sheets = files['workbook'].css('sheets').children.size
-      @num_sheets = Integer(@num_sheets)
+      @num_sheets = Integer(files['workbook'].css('sheets').children.size)
 
       #adds all worksheet xml files to files hash
       i=1
       1.upto(@num_sheets) do
-        filename = 'sheet'+i.to_s
-        files[i] = Nokogiri::XML.parse(File.open(File.join(dir_path,'xl','worksheets',filename+'.xml'),'r'))
+        filename = 'sheet' + i.to_s
+        File.open(File.join(dir_path,'xl','worksheets',filename+'.xml'), 'r') do |f|
+          files[i] = Nokogiri::XML.parse(f)
+        end
         i=i+1
       end
 

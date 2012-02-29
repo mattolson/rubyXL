@@ -299,131 +299,82 @@ module RubyXL
         end
       end
     end
+    
+    def Parser.parse_xml(name, path)
+      # figure out parse options
+      parse_options = Nokogiri::ParseOptions::DEFAULT_XML
+      parse_options |= Nokogiri::ParseOptions::COMPACT if @read_only
+
+      # Open, parse, and store it
+      if File.exist?(path)
+        File.open(path, 'rb') do |f|
+          @files[name] = Nokogiri::XML.parse(f)
+        end
+      end
+    end
+
+    def Parser.read_external_files(path)
+      retval = nil
+      
+      if File.directory?(path)
+        retval = {}
+        files = Dir.new(path).entries.reject { |f| File.directory?(File.join(path, f)) || f == ".DS_Store" }
+        files.each_with_index do |filename, i|
+          File.open(File.join(path, filename), 'rb') do |f|
+            retval[i+1] = f.read
+          end
+        end
+      else
+        File.open(path, 'rb') do |f|
+          retval = f.read
+        end
+      end
+      
+      retval
+    end
 
     def Parser.decompress(file_path)
-      #ensures it is an xlsx/xlsm file
-      if(file_path =~ /(.+)\.xls(x|m)/)
+      # ensure it is an xlsx/xlsm file
+      if file_path =~ /(.+)\.xls(x|m)/
         dir_path = $1.to_s
       else
         raise 'Not .xlsx or .xlsm excel file'
       end
 
+      # copy excel file to zip file in same directory
       dir_path = File.join(File.dirname(dir_path), make_safe_name(Time.now.to_s))
-      #copies excel file to zip file in same directory
       zip_path = dir_path + '.zip'
-
       FileUtils.cp(file_path,zip_path)
-
       MyZip.new.unzip(zip_path,dir_path)
       File.delete(zip_path)
 
-      files = Hash.new
+      # parse core files
+      @files = Hash.new
+      Parser.parse_xml('app', File.join(dir_path, 'docProps', 'app.xml'))
+      Parser.parse_xml('core', File.join(dir_path, 'docProps', 'core.xml'))
+      Parser.parse_xml('workbook', File.join(dir_path, 'xl', 'workbook.xml'))
+      Parser.parse_xml('sharedString', File.join(dir_path, 'xl', 'sharedStrings.xml'))
 
-      File.open(File.join(dir_path,'docProps','app.xml'), 'r') do |f|
-        files['app'] = Nokogiri::XML.parse(f)
-      end
-      
-      File.open(File.join(dir_path,'docProps','core.xml'), 'r') do |f|
-        files['core'] = Nokogiri::XML.parse(f)
-      end
-
-      File.open(File.join(dir_path,'xl','workbook.xml'), 'r') do |f|
-        files['workbook'] = Nokogiri::XML.parse(f)
-      end
-
-      if File.exist?(File.join(dir_path,'xl','sharedStrings.xml'))
-        File.open(File.join(dir_path,'xl','sharedStrings.xml'), 'r') do |f|
-          files['sharedString'] = Nokogiri::XML.parse(f)
-        end
-      end
-
+      # preserve external links
       unless @data_only
-        #preserves external links
-        if File.directory?(File.join(dir_path,'xl','externalLinks'))
-          files['externalLinks'] = {}
-          ext_links_path = File.join(dir_path,'xl','externalLinks')
-          files['externalLinks']['rels'] = []
-          dir = Dir.new(ext_links_path).entries.reject {|f| [".", "..", ".DS_Store", "_rels"].include? f}
-
-          dir.each_with_index do |link,i|
-            File.open(File.join(ext_links_path,link), 'r') do |f|
-              files['externalLinks'][i+1] = f.read
-            end
-          end
-
-          if File.directory?(File.join(ext_links_path,'_rels'))
-            dir = Dir.new(File.join(ext_links_path,'_rels')).entries.reject{|f| [".","..",".DS_Store"].include? f}
-            dir.each_with_index do |rel,i|
-              File.open(File.join(ext_links_path,'_rels',rel), 'r') do |f|
-                files['externalLinks']['rels'][i+1] = f.read
-              end
-            end
-          end
-        end
-
-        if File.directory?(File.join(dir_path,'xl','drawings'))
-          files['drawings'] = {}
-          drawings_path = File.join(dir_path,'xl','drawings')
-
-          dir = Dir.new(drawings_path).entries.reject {|f| [".", "..", ".DS_Store"].include? f}
-          dir.each_with_index do |draw,i|
-            File.open(File.join(drawings_path,draw), 'r') do |f|
-              files['drawings'][i+1] = f.read
-            end
-          end
-        end
-
-        if File.directory?(File.join(dir_path,'xl','printerSettings'))
-          files['printerSettings'] = {}
-          printer_path = File.join(dir_path,'xl','printerSettings')
-
-          dir = Dir.new(printer_path).entries.reject {|f| [".","..",".DS_Store"].include? f}
-
-          dir.each_with_index do |print, i|
-            File.open(File.join(printer_path,print), 'rb') do |f|
-              files['printerSettings'][i+1] = f.read
-            end
-          end
-        end
-
-        if File.directory?(File.join(dir_path,"xl",'worksheets','_rels'))
-          files['worksheetRels'] = {}
-          worksheet_rels_path = File.join(dir_path,'xl','worksheets','_rels')
-
-          dir = Dir.new(worksheet_rels_path).entries.reject {|f| [".","..",".DS_Store"].include? f}
-          dir.each_with_index do |rel, i|
-            File.open(File.join(worksheet_rels_path,rel), 'r') do |f|
-              files['worksheetRels'][i+1] = f.read
-            end
-          end
-        end
-
-        if File.exist?(File.join(dir_path,'xl','vbaProject.bin'))
-          File.open(File.join(dir_path,"xl","vbaProject.bin"), 'rb') do |f|
-            files['vbaProject'] = f.read
-          end
-        end
-
-        File.open(File.join(dir_path,'xl','styles.xml'), 'r') do |f|
-          files['styles'] = Nokogiri::XML.parse(f)
-        end
+        @files['externalLinks'] = Parser.read_external_files(File.join(dir_path, 'xl', 'externalLinks'))
+        @files['externalLinks']['rels'] = Parser.read_external_files(File.join(dir_path, 'xl', 'externalLinks', '_rels'))
+        @files['drawings'] = Parser.read_external_files(File.join(dir_path, 'xl', 'drawings'))
+        @files['printerSettings'] = Parser.read_external_files(File.join(dir_path, 'xl', 'printerSettings'))
+        @files['worksheetRels'] = Parser.read_external_files(File.join(dir_path, 'xl', 'worksheets', '_rels'))
+        @files['vbaProject'] = Parser.read_external_files(File.join(dir_path, 'xl', 'vbaProject.bin'))
+        Parser.parse_xml('styles', File.join(dir_path, 'xl', 'styles.xml'))
       end
 
+      # parse the worksheets
       @num_sheets = Integer(files['workbook'].css('sheets').children.size)
-
-      #adds all worksheet xml files to files hash
-      i=1
-      1.upto(@num_sheets) do
-        filename = 'sheet' + i.to_s
-        File.open(File.join(dir_path,'xl','worksheets',filename+'.xml'), 'r') do |f|
-          files[i] = Nokogiri::XML.parse(f)
-        end
-        i=i+1
+      for i in 1..@num_sheets
+        filename = 'sheet' + i.to_s + '.xml'
+        Parser.parse_xml(i, File.join(dir_path, 'xl', 'worksheets', filename))
       end
 
+      # cleanup
       FileUtils.rm_rf(dir_path)
-
-      return files
     end
 
     def Parser.fill_workbook(file_path, files)

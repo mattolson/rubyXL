@@ -396,7 +396,7 @@ module RubyXL
       # 1. find the dimensions of the data matrix
       # 2. Fill in the matrix with data from worksheet/shared_string files
       # 3. Apply styles
-      for i in 0..wb.worksheets.size
+      for i in 0..@num_sheets-1
         Parser.fill_worksheet(wb, i)
       end
 

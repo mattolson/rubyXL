@@ -240,36 +240,34 @@ module RubyXL
 
         ##data_validation##
         data_validations_node = worksheet_xml.xpath('/xmlns:worksheet/xmlns:dataValidations[xmlns:dataValidation]',namespaces)
+        worksheet.validations = nil
         unless data_validations_node.empty?
           worksheet.validations = Hash.xml_node_to_hash(data_validations_node.first)[:dataValidation]
-        else
-          worksheet.validations=nil
         end
         data_validations_node = nil
         ##end data_validation##
 
         #extLst
         ext_list_node = worksheet_xml.xpath('/xmlns:worksheet/xmlns:extLst',namespaces)
+        worksheet.extLst = nil
         unless ext_list_node.empty?
           worksheet.extLst = Hash.xml_node_to_hash(ext_list_node.first)
-        else
-          worksheet.extLst = nil
         end
         ext_list_node = nil
         #extLst
 
         ##legacy drawing##
         legacy_drawing_node = worksheet_xml.xpath('/xmlns:worksheet/xmlns:legacyDrawing',namespaces)
+        worksheet.legacy_drawing = nil
         unless legacy_drawing_node.empty?
           worksheet.legacy_drawing = Hash.xml_node_to_hash(legacy_drawing_node.first)
-        else
-          worksheet.legacy_drawing = nil
         end
         legacy_drawing_node = nil
         ##end legacy drawing
       end
 
-      worksheet_xml.xpath('/xmlns:worksheet/xmlns:sheetData/xmlns:row[xmlns:c[xmlns:v]]',namespaces).each do |row|
+      rows = worksheet_xml.xpath('/xmlns:worksheet/xmlns:sheetData/xmlns:row[xmlns:c[xmlns:v]]',namespaces)
+      rows.each do |row|
         unless @data_only
           ##row styles##
           row_style = '0'
@@ -285,7 +283,8 @@ module RubyXL
           ##end row styles##
         end
 
-        row.search('./xmlns:c').each do |value|
+        columns = row.search('./xmlns:c')
+        columns.each do |value|
           # Scan attributes
           cell_index = Parser.convert_to_index(value.attributes['r'].content)
           data_type = value.attributes['t'].content if value.attributes['t']

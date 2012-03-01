@@ -15,41 +15,39 @@ module RubyXL
     end
 
     def self.xml_node_to_hash(node)
+      return prepare(node.content.to_s) if !node.element?
+
       # If we are at the root of the document, start the hash
-      if node.element?
-        result_hash = {}
-        if node.attributes != {}
-          result_hash[:attributes] = {}
-          node.attributes.keys.each do |key|
-            result_hash[:attributes][node.attributes[key].name.to_sym] = prepare(node.attributes[key].value)
-          end
-        end
-        if node.children.size > 0
-          node.children.each do |child|
-            result = xml_node_to_hash(child)
+      result_hash = {}
 
-            if child.name == "text"
-              unless child.next_sibling || child.previous_sibling
-                return prepare(result)
-              end
-            elsif result_hash[child.name.to_sym]
-              if result_hash[child.name.to_sym].is_a?(Object::Array)
-                result_hash[child.name.to_sym] << prepare(result)
-              else
-                result_hash[child.name.to_sym] = [result_hash[child.name.to_sym]] << prepare(result)
-              end
-            else
-              result_hash[child.name.to_sym] = prepare(result)
-            end
-          end
-
-          return result_hash
-        else
-          return result_hash
+      if node.attributes != {}
+        result_hash[:attributes] = {}
+        node.attributes.keys.each do |key|
+          result_hash[:attributes][node.attributes[key].name.to_sym] = prepare(node.attributes[key].value)
         end
-      else
-        return prepare(node.content.to_s)
       end
+
+      if node.children.size > 0
+        node.children.each do |child|
+          result = xml_node_to_hash(child)
+
+          if child.name == "text"
+            unless child.next_sibling || child.previous_sibling
+              return prepare(result)
+            end
+          elsif result_hash[child.name.to_sym]
+            if result_hash[child.name.to_sym].is_a?(Object::Array)
+              result_hash[child.name.to_sym] << prepare(result)
+            else
+              result_hash[child.name.to_sym] = [result_hash[child.name.to_sym]] << prepare(result)
+            end
+          else
+            result_hash[child.name.to_sym] = prepare(result)
+          end
+        end
+      end
+
+      return result_hash
     end
 
     def self.prepare(data)

@@ -7,12 +7,10 @@ require File.expand_path(File.join(File.dirname(__FILE__),'Hash'))
 module RubyXL
 
   class Parser
-    attr_reader :data_only, :read_only, :num_sheets
     @@debug = true
-    @@parsed_column_hash = {}
     
     # converts cell string (such as "AA1") to matrix indices
-    def Parser.convert_to_index(cell_string)
+    def self.convert_to_index(cell_string)
       index = Array.new(2)
       index[0]=-1
       index[1]=-1
@@ -22,16 +20,16 @@ module RubyXL
         row = $2.to_i - 1 #-1 for 0 indexing
         col = 0
         i = 0
-        if @@parsed_column_hash[one].nil?
+        if @parsed_column_hash[one].nil?
           two = one.reverse #because of 26^i calculation
           two.each_byte do |c|
             int_val = c - 64 #converts A to 1
             col += int_val * 26**(i)
             i=i+1
           end
-          @@parsed_column_hash[one] = col
+          @parsed_column_hash[one] = col
         else
-          col = @@parsed_column_hash[one]
+          col = @parsed_column_hash[one]
         end
         col -= 1 #zer0 index
         index[0] = row
@@ -40,12 +38,11 @@ module RubyXL
       return index
     end
 
-
     # data_only allows only the sheet data to be parsed, so as to speed up parsing
     #   However, using this option will result in date-formatted cells being interpreted as numbers
     # read_only disables modification or writing of the file, but results in a much
     #   lower memory footprint
-    def Parser.parse(file_path, data_only=false, read_only=false)
+    def self.parse(file_path, data_only=false, read_only=false)
       # ensure we are given a xlsx/xlsm file
       if file_path =~ /(.+)\.xls(x|m)/
         dir_path = $1.to_s
@@ -109,23 +106,23 @@ module RubyXL
         puts "[#{Time.now}] done." if @@debug
 
         puts "[#{Time.now}] Processing shared strings (phase 2)..." if @@debug
-        shared_strings_xml.css('si').each do |node|
-          unless node.css('r').empty?
-            text = node.css('r t').children.to_a.join
-            node.children.remove
-            node << "<t xml:space=\"preserve\">#{text}</t>"
+        shared_strings_xml.css('si').each_with_index do |node, i|
+          # Merge si > r > t into si > t; unnecessary?
+          #unless node.css('r').empty?
+          #  text = node.css('r t').children.to_a.join
+          #  node.children.remove
+          #  node << "<t xml:space=\"preserve\">#{text}</t>"
+          #end
+
+          # Build two way hash for shared strings
+          node.css('t').each do |t|
+            str = t.child.content
+            wb.shared_strings[i] = str
+            wb.shared_strings[str] = i unless @read_only
           end
         end
         puts "[#{Time.now}] done." if @@debug
 
-        puts "[#{Time.now}] Processing shared strings (phase 3)..." if @@debug
-        shared_strings_xml.css('si t').each_with_index do |node, i|
-          str = node.children.to_s
-          wb.shared_strings[i] = str
-          wb.shared_strings[str] = i unless @read_only
-        end
-        puts "[#{Time.now}] done." if @@debug
-        
         shared_strings_xml = nil
       end
 
@@ -159,7 +156,7 @@ module RubyXL
     private
 
     # fill hashes for various styles
-    def Parser.fill_styles(wb,style_hash)
+    def self.fill_styles(wb,style_hash)
       puts "[#{Time.now}] Filling styles..." if @@debug
       
       wb.num_fmts = style_hash[:numFmts]
@@ -225,10 +222,10 @@ module RubyXL
     end
 
     # populate worksheet
-    def Parser.fill_worksheet(worksheet, worksheet_xml)
+    def self.fill_worksheet(worksheet, worksheet_xml)
       puts "[#{Time.now}] Filling worksheet '#{worksheet.sheet_name}'..." if @@debug
-
       namespaces = worksheet_xml.root.namespaces()
+
       unless @data_only
         sheet_views_node = worksheet_xml.xpath('/xmlns:worksheet/xmlns:sheetViews[xmlns:sheetView]', namespaces).first
         worksheet.sheet_view = Hash.xml_node_to_hash(sheet_views_node)[:sheetView]
@@ -282,12 +279,9 @@ module RubyXL
         ##end legacy drawing
       end
 
-      puts "[#{Time.now}] Starting row data xpath..." if @@debug
-      rows = worksheet_xml.xpath('/xmlns:worksheet/xmlns:sheetData/xmlns:row[xmlns:c[xmlns:v]]',namespaces)
-      puts "[#{Time.now}] done." if @@debug
-      
-      rows.each_with_index do |row, row_index|
-        puts "[#{Time.now}] Processing row #{row_index}..." if @@debug
+      # Loop through rows
+      worksheet_xml.xpath('/xmlns:worksheet/xmlns:sheetData/xmlns:row',namespaces).each_with_index do |row, row_index|
+        puts "[#{Time.now}] Processing row #{row_index}..." if @@debug && row_index % 10 == 0
 
         unless @data_only
           ##row styles##
@@ -298,19 +292,14 @@ module RubyXL
 
           worksheet.row_styles[row.attributes['r'].content] = { :style => row_style  }
 
-          if !row.attributes['ht'].nil?  && (!row.attributes['ht'].content.nil? || row.attributes['ht'].content.strip != "" )
+          if !row.attributes['ht'].nil? && (!row.attributes['ht'].content.nil? || row.attributes['ht'].content.strip != "")
             worksheet.change_row_height(Integer(row.attributes['r'].content)-1, Float(row.attributes['ht'].content))
           end
           ##end row styles##
         end
 
-        puts "[#{Time.now}] Starting column data xpath..." if @@debug
         columns = row.search('./xmlns:c')
-        puts "[#{Time.now}] done." if @@debug
-
-        columns.each_with_index do |value, col_index|
-          puts "[#{Time.now}] Processing column #{col_index}..." if @@debug
-
+        columns.each do |value|
           # Scan attributes
           cell_index = Parser.convert_to_index(value.attributes['r'].content)
           data_type = value.attributes['t'].content if value.attributes['t']
@@ -323,7 +312,7 @@ module RubyXL
           if v_element == "" # no data
             cell_data = nil
           elsif data_type == 's' # shared string
-            cell_data = worksheet.workbook.shared_strings[Integer(v_element)].to_s
+            cell_data = worksheet.workbook.shared_strings[Integer(v_element)]
           elsif data_type == 'str' # raw string
             cell_data = v_element
           elsif data_type == 'e' # error
@@ -364,7 +353,7 @@ module RubyXL
       end
     end
     
-    def Parser.parse_xml(path)
+    def self.parse_xml(path)
       # figure out parse options
       parse_options = Nokogiri::XML::ParseOptions::DEFAULT_XML
       parse_options |= Nokogiri::XML::ParseOptions::COMPACT if @read_only
@@ -383,7 +372,7 @@ module RubyXL
       retval
     end
 
-    def Parser.read_external_files(path)
+    def self.read_external_files(path)
       retval = nil
       
       if File.directory?(path)
@@ -407,14 +396,14 @@ module RubyXL
       retval
     end
 
-    def Parser.safe_filename(name, allow_mb_chars=false)
+    def self.safe_filename(name, allow_mb_chars=false)
       # "\w" represents [0-9A-Za-z_] plus any multi-byte char
       regexp = allow_mb_chars ? /[^\w]/ : /[^0-9a-zA-Z\_]/
       name.gsub(regexp, "_")
     end
 
     # Turns the passed in string into something safe for a filename
-    def Parser.make_safe_name(name, allow_mb_chars=false)
+    def self.make_safe_name(name, allow_mb_chars=false)
       ext = safe_filename(File.extname(name), allow_mb_chars).gsub(/^_/, '.')
       "#{safe_filename(name.gsub(ext, ""), allow_mb_chars)}#{ext}".gsub(/\(/, '_').gsub(/\)/, '_').gsub(/__+/, '_').gsub(/^_/, '').gsub(/_$/, '')
     end

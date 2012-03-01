@@ -2,24 +2,29 @@ module RubyXL
   class SheetData
     include Enumerable
 
-    def initialize(values)
-      @data = values || Array.new
+    def initialize(x=1,y=1)
+      @data = Array.new(x) {Array.new(y)}
     end
   
-    def [](x)
+    def [](x, y=nil)
       @data[x] ||= Array.new
-      @data[x]
+      
+      if y
+        @data[x][y]
+      else
+        @data[x]
+      end
     end
   
-    def []=(x,value)
+    def []=(x, y, value)
       @data[x] ||= Array.new
-      @data[x] = value
+      @data[x][y] = value
     end
 
     def each
-      @data.each do |c|
-        c ||= Array.new
-        c.each{ |i| yield i }
+      @data.each do |row|
+        row ||= Array.new
+        yield row
       end 
     end
 

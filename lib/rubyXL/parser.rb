@@ -44,53 +44,14 @@ module RubyXL
     # read_only disables modification or writing of the file, but results in a much
     #   lower memory footprint
     def Parser.parse(file_path, data_only=false, read_only=false)
+      @file_path = file_path
       @data_only = data_only
       @read_only = read_only
-      
-      Parser.decompress(file_path)
-      wb = Parser.fill_workbook(file_path)
 
-      unless @files['sharedString'].nil?
-        wb.num_strings = Integer(@files['sharedString'].css('sst').attribute('count').value())
-        wb.size = Integer(@files['sharedString'].css('sst').attribute('uniqueCount').value())
-
-        @files['sharedString'].css('si').each do |node|
-          unless node.css('r').empty?
-            text = node.css('r t').children.to_a.join
-            node.children.remove
-            node << "<t xml:space=\"preserve\">#{text}</t>"
-          end
-        end
-
-        string_nodes = @files['sharedString'].css('si t')
-        wb.shared_strings = {}
-        string_nodes.each_with_index do |node,i|
-          string = node.children.to_s
-          wb.shared_strings[i] = string
-          wb.shared_strings[string] = i
-        end
-      end
-
-      unless @data_only
-        styles = @files['styles'].css('cellXfs xf')
-        style_hash = Hash.xml_node_to_hash(@files['styles'].root)
-        fill_styles(wb,style_hash)
-
-        # will be nil if these files do not exist
-        wb.external_links = @files['externalLinks']
-        wb.drawings = @files['drawings']
-        wb.printer_settings = @files['printerSettings']
-        wb.worksheet_rels = @files['worksheetRels']
-        wb.macros = @files['vbaProject']
-      end
-
-      #for each worksheet:
-      #1. find the dimensions of the data matrix
-      #2. Fill in the matrix with data from worksheet/shared_string files
-      #3. Apply styles
-      wb.worksheets.each_index do |i|
-        Parser.fill_worksheet(wb,i,wb.shared_strings)
-      end
+      @files = Hash.new
+      Parser.decompress()
+      wb = Parser.fill_workbook()
+      @files = nil
 
       return wb
     end
@@ -162,7 +123,7 @@ module RubyXL
     # i is the sheet number
     # files is the hash which includes information for each worksheet
     # shared_strings has group of indexed strings which the cells reference
-    def Parser.fill_worksheet(wb,i,shared_strings)
+    def Parser.fill_worksheet(wb, i)
       wb.worksheets[i] = Parser.create_matrix(wb, i)
       j = i+1
 
@@ -218,7 +179,6 @@ module RubyXL
         ##end legacy drawing
       end
 
-      
       row_data = @files[j].xpath('/xmlns:worksheet/xmlns:sheetData/xmlns:row[xmlns:c[xmlns:v]]',namespaces)
       row_data.each do |row|
         unless @data_only
@@ -259,7 +219,7 @@ module RubyXL
             cell_data = nil
           elsif data_type == 's' #shared string
             str_index = Integer(v_element_content)
-            cell_data = shared_strings[str_index].to_s
+            cell_data = wb.shared_strings[str_index].to_s
           elsif data_type=='str' #raw string
             cell_data = v_element_content
           elsif data_type=='e' #error
@@ -295,7 +255,6 @@ module RubyXL
           wb.worksheets[i].sheet_data[cell_index[0]][cell_index[1]] =
             Cell.new(wb.worksheets[i],cell_index[0],cell_index[1],cell_data,cell_formula,
               data_type,style_index,cell_formula_attr)
-          cell = wb.worksheets[i].sheet_data[cell_index[0]][cell_index[1]]
         end
       end
     end
@@ -333,9 +292,9 @@ module RubyXL
       retval
     end
 
-    def Parser.decompress(file_path)
+    def Parser.decompress()
       # ensure it is an xlsx/xlsm file
-      if file_path =~ /(.+)\.xls(x|m)/
+      if @file_path =~ /(.+)\.xls(x|m)/
         dir_path = $1.to_s
       else
         raise 'Not .xlsx or .xlsm excel file'
@@ -344,12 +303,11 @@ module RubyXL
       # copy excel file to zip file in same directory
       dir_path = File.join(File.dirname(dir_path), make_safe_name(Time.now.to_s))
       zip_path = dir_path + '.zip'
-      FileUtils.cp(file_path,zip_path)
+      FileUtils.cp(@file_path,zip_path)
       MyZip.new.unzip(zip_path,dir_path)
       File.delete(zip_path)
 
       # parse core files
-      @files = Hash.new
       Parser.parse_xml('app', File.join(dir_path, 'docProps', 'app.xml'))
       Parser.parse_xml('core', File.join(dir_path, 'docProps', 'core.xml'))
       Parser.parse_xml('workbook', File.join(dir_path, 'xl', 'workbook.xml'))
@@ -377,8 +335,15 @@ module RubyXL
       FileUtils.rm_rf(dir_path)
     end
 
-    def Parser.fill_workbook(file_path)
-      wb = Workbook.new([nil],file_path)
+    def Parser.fill_workbook()
+      wb = Workbook.new([nil],@file_path)
+      wb.worksheets = Array.new(@num_sheets) # array of Worksheet objs
+
+      #attr_accessor :worksheets, :filepath, :creator, :modifier, :created_at,
+      #  :modified_at, :company, :application, :appversion, :num_fmts, :fonts, :fills,
+      #  :borders, :cell_xfs, :cell_style_xfs, :cell_styles, :shared_strings, :calc_chain,
+      #  :num_strings, :size, :date1904, :external_links, :style_corrector, :drawings,
+      #  :worksheet_rels, :printer_settings, :macros, :colors, :shared_strings_XML, :defined_names, :column_lookup_hash
 
       unless @data_only
         wb.creator = @files['core'].css('dc|creator').children.to_s
@@ -391,11 +356,50 @@ module RubyXL
         wb.appversion = @files['app'].css('AppVersion').children.to_s
       end
 
-      wb.shared_strings_XML = @files['sharedString'].to_s
       wb.defined_names = @files['workbook'].css('definedNames').to_s
       wb.date1904 = @files['workbook'].css('workbookPr').attribute('date1904').to_s == '1'
 
-      wb.worksheets = Array.new(@num_sheets) #array of Worksheet objs
+      wb.shared_strings = {}
+      unless @files['sharedString'].nil?
+        wb.shared_strings_XML = @files['sharedString'].to_s unless @read_only
+        wb.num_strings = Integer(@files['sharedString'].css('sst').attribute('count').value())
+        wb.size = Integer(@files['sharedString'].css('sst').attribute('uniqueCount').value())
+
+        @files['sharedString'].css('si').each do |node|
+          unless node.css('r').empty?
+            text = node.css('r t').children.to_a.join
+            node.children.remove
+            node << "<t xml:space=\"preserve\">#{text}</t>"
+          end
+        end
+
+        @files['sharedString'].css('si t').each_with_index do |node, i|
+          string = node.children.to_s
+          wb.shared_strings[i] = string
+          wb.shared_strings[string] = i unless @read_only
+        end
+      end
+
+      unless @data_only
+        style_hash = Hash.xml_node_to_hash(@files['styles'].root)
+        Parser.fill_styles(wb,style_hash)
+
+        # will be nil if these files do not exist
+        wb.external_links = @files['externalLinks']
+        wb.drawings = @files['drawings']
+        wb.printer_settings = @files['printerSettings']
+        wb.worksheet_rels = @files['worksheetRels']
+        wb.macros = @files['vbaProject']
+      end
+
+      # for each worksheet:
+      # 1. find the dimensions of the data matrix
+      # 2. Fill in the matrix with data from worksheet/shared_string files
+      # 3. Apply styles
+      for i in 0..wb.worksheets.size
+        Parser.fill_worksheet(wb, i)
+      end
+
       wb
     end
 
@@ -404,6 +408,7 @@ module RubyXL
       sheet_names = @files['app'].css('TitlesOfParts vt|vector vt|lpstr').children
       sheet = Worksheet.new(wb,sheet_names[i].to_s,[])
 
+      # create matrix filled with nils
       dimensions = @files[i+1].css('dimension').attribute('ref').to_s
       if(dimensions =~ /^([A-Z]+\d+:)?([A-Z]+\d+)$/)
         index = convert_to_index($2)
@@ -411,11 +416,12 @@ module RubyXL
         rows = index[0]+1
         cols = index[1]+1
 
-        #creates matrix filled with nils
-        rows.times {sheet.sheet_data << Array.new(cols)}
+        puts "Creating matrix #{rows}x#{cols}"
+        rows.times { sheet.sheet_data << Array.new(cols) }
       else
-        raise 'invalid file'
+        raise 'invalid dimensions'
       end
+      
       sheet
     end
 

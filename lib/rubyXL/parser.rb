@@ -7,6 +7,7 @@ require File.expand_path(File.join(File.dirname(__FILE__),'Hash'))
 module RubyXL
 
   class Parser
+    @@parsed_column_hash = {}
     @@debug = true
     
     # converts cell string (such as "AA1") to matrix indices
@@ -20,16 +21,16 @@ module RubyXL
         row = $2.to_i - 1 #-1 for 0 indexing
         col = 0
         i = 0
-        if @parsed_column_hash[one].nil?
+        if @@parsed_column_hash[one].nil?
           two = one.reverse #because of 26^i calculation
           two.each_byte do |c|
             int_val = c - 64 #converts A to 1
             col += int_val * 26**(i)
             i=i+1
           end
-          @parsed_column_hash[one] = col
+          @@parsed_column_hash[one] = col
         else
-          col = @parsed_column_hash[one]
+          col = @@parsed_column_hash[one]
         end
         col -= 1 #zer0 index
         index[0] = row

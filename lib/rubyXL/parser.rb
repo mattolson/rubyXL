@@ -137,7 +137,7 @@ module RubyXL
         filename = 'sheet' + (i+1).to_s + '.xml'
         worksheet_xml = Parser.parse_xml(File.join(dir_path, 'xl', 'worksheets', filename))
         wb.worksheets[i] = Worksheet.new(wb, sheet_names[i].to_s)
-        Parser.fill_worksheet(wb, i, worksheet_xml)
+        Parser.fill_worksheet(wb.worksheets[i], worksheet_xml)
         worksheet_xml = nil
       end
 

@@ -124,7 +124,9 @@ module RubyXL
     # files is the hash which includes information for each worksheet
     # shared_strings has group of indexed strings which the cells reference
     def Parser.fill_worksheet(wb, i)
-      wb.worksheets[i] = Parser.create_matrix(wb, i)
+      sheet_names = @files['app'].css('TitlesOfParts vt|vector vt|lpstr').children
+      wb.worksheets[i] = Worksheet.new(wb, sheet_names[i].to_s)
+
       j = i+1
 
       namespaces = @files[j].root.namespaces()
@@ -401,28 +403,6 @@ module RubyXL
       end
 
       wb
-    end
-
-    #sheet_names, dimensions
-    def Parser.create_matrix(wb, i)
-      sheet_names = @files['app'].css('TitlesOfParts vt|vector vt|lpstr').children
-      sheet = Worksheet.new(wb,sheet_names[i].to_s,[])
-
-      # create matrix filled with nils
-      dimensions = @files[i+1].css('dimension').attribute('ref').to_s
-      if(dimensions =~ /^([A-Z]+\d+:)?([A-Z]+\d+)$/)
-        index = convert_to_index($2)
-
-        rows = index[0]+1
-        cols = index[1]+1
-
-        puts "Creating matrix #{rows}x#{cols}"
-        rows.times { sheet.sheet_data << Array.new(cols) }
-      else
-        raise 'invalid dimensions'
-      end
-      
-      sheet
     end
 
     def Parser.safe_filename(name, allow_mb_chars=false)

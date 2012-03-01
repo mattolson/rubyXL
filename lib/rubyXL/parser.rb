@@ -1,6 +1,7 @@
 require 'rubygems'
 require 'nokogiri'
 require 'zip/zip'
+require 'date'
 require File.expand_path(File.join(File.dirname(__FILE__),'Hash'))
 
 module RubyXL
@@ -135,10 +136,17 @@ module RubyXL
       # parse the worksheets
       for i in 0..@num_sheets-1
         filename = 'sheet' + (i+1).to_s + '.xml'
+
+        puts "Parsing #{filename} [#{Time.now}]"
         worksheet_xml = Parser.parse_xml(File.join(dir_path, 'xl', 'worksheets', filename))
+        puts "done."
+
         wb.worksheets[i] = Worksheet.new(wb, sheet_names[i].to_s)
+
+        puts "Filling #{filename} [#{Time.now}]"
         Parser.fill_worksheet(wb.worksheets[i], worksheet_xml)
         worksheet_xml = nil
+        puts "done."
       end
 
       # cleanup

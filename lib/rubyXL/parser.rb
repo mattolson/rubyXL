@@ -120,9 +120,7 @@ module RubyXL
       end
     end
 
-    # i is the sheet number
-    # files is the hash which includes information for each worksheet
-    # shared_strings has group of indexed strings which the cells reference
+    # populate worksheet
     def Parser.fill_worksheet(wb, i)
       sheet_names = @files['app'].css('TitlesOfParts vt|vector vt|lpstr').children
       wb.worksheets[i] = Worksheet.new(wb, sheet_names[i].to_s)
@@ -269,7 +267,7 @@ module RubyXL
       # Open, parse, and store it
       if File.exist?(path)
         File.open(path, 'rb') do |f|
-          @files[name] = Nokogiri::XML.parse(f)
+          @files[name] = Nokogiri::XML.parse(f, nil, nil, parse_options)
         end
       end
     end

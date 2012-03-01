@@ -116,9 +116,12 @@ module RubyXL
 
           # Build two way hash for shared strings
           node.css('t').each do |t|
-            str = t.child.content
-            wb.shared_strings[i] = str
-            wb.shared_strings[str] = i unless @read_only
+            t = t.child
+            unless t.nil?
+              str = t.content
+              wb.shared_strings[i] = str
+              wb.shared_strings[str] = i unless @read_only
+            end
           end
         end
         puts "[#{Time.now}] done." if @@debug

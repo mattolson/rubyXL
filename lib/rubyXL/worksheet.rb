@@ -31,6 +31,10 @@ class Worksheet < PrivateClass
     @sheet_data.each {|i| yield i}
   end
 
+  def clear_row(row)
+    return @sheet_data.clear_row(row)
+  end
+
   #returns 2d array of just the cell values (without style or formula information)
   def extract_data
     return @sheet_data.map {|row| row.map {|c| if c.is_a?(Cell) then c.value else nil end}}

@@ -27,6 +27,10 @@ module RubyXL
         yield row
       end 
     end
+    
+    def clear_row(x)
+      @data[x] = nil
+    end
 
   end
 end

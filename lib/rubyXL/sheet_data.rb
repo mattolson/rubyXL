@@ -6,25 +6,14 @@ module RubyXL
       @data = values || Array.new
     end
   
-    def [](x, y=nil)
+    def [](x)
       @data[x] ||= Array.new
-      
-      if y
-        @data[x][y]
-      else
-        @data[x]
-      end
+      @data[x]
     end
   
-    def []=(x,y,value)
+    def []=(x,value)
       @data[x] ||= Array.new
-      @data[x][y] = value
-    end
-
-    def each
-      @data.each do |c|
-        c.each{ |i| yield i }
-      end 
+      @data[x] = value
     end
 
   end

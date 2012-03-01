@@ -292,7 +292,7 @@ module RubyXL
           
           # v is the value element that is part of the cell
           v_element = value > 'v'
-          v_element = v_element ? v_element.content : ""
+          v_element = v_element.empty? ? "" : v_element.first.content
 
           # Parse out cell data
           if v_element == "" # no data
@@ -314,6 +314,7 @@ module RubyXL
           
           # f contains the formula
           f_element = value > 'f'
+          f_element = f_element.empty? ? nil : f_element.first
 
           # Parse out formula
           cell_formula = nil

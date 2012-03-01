@@ -214,14 +214,16 @@ module RubyXL
     def Parser.fill_worksheet(worksheet, worksheet_xml)
       namespaces = worksheet_xml.root.namespaces()
       unless @data_only
-        sheet_views_node= worksheet_xml.xpath('/xmlns:worksheet/xmlns:sheetViews[xmlns:sheetView]',namespaces).first
+        sheet_views_node = worksheet_xml.xpath('/xmlns:worksheet/xmlns:sheetViews[xmlns:sheetView]', namespaces).first
         worksheet.sheet_view = Hash.xml_node_to_hash(sheet_views_node)[:sheetView]
+        sheet_views_node = nil
 
         ##col styles##
         cols_node_set = worksheet_xml.xpath('/xmlns:worksheet/xmlns:cols',namespaces)
         unless cols_node_set.empty?
-          worksheet.cols= Hash.xml_node_to_hash(cols_node_set.first)[:col]
+          worksheet.cols = Hash.xml_node_to_hash(cols_node_set.first)[:col]
         end
+        cols_node_set = nil
         ##end col styles##
 
         ##merge_cells##
@@ -229,11 +231,11 @@ module RubyXL
         unless merge_cells_node.empty?
           worksheet.merged_cells = Hash.xml_node_to_hash(merge_cells_node.first)[:mergeCell]
         end
+        merge_cells_node = nil
         ##end merge_cells##
 
         ##sheet_view pane##
-        pane_data = worksheet.sheet_view[:pane]
-        worksheet.pane = pane_data
+        worksheet.pane = worksheet.sheet_view[:pane]
         ##end sheet_view pane##
 
         ##data_validation##
@@ -243,6 +245,7 @@ module RubyXL
         else
           worksheet.validations=nil
         end
+        data_validations_node = nil
         ##end data_validation##
 
         #extLst
@@ -252,6 +255,7 @@ module RubyXL
         else
           worksheet.extLst = nil
         end
+        ext_list_node = nil
         #extLst
 
         ##legacy drawing##
@@ -261,84 +265,75 @@ module RubyXL
         else
           worksheet.legacy_drawing = nil
         end
+        legacy_drawing_node = nil
         ##end legacy drawing
       end
 
-      row_data = worksheet_xml.xpath('/xmlns:worksheet/xmlns:sheetData/xmlns:row[xmlns:c[xmlns:v]]',namespaces)
-      row_data.each do |row|
+      worksheet_xml.xpath('/xmlns:worksheet/xmlns:sheetData/xmlns:row[xmlns:c[xmlns:v]]',namespaces).each do |row|
         unless @data_only
           ##row styles##
           row_style = '0'
-          row_attributes = row.attributes
-          unless row_attributes['s'].nil?
-            row_style = row_attributes['s'].value
+          unless row.attributes['s'].nil?
+            row_style = row.attributes['s'].value
           end
 
-          worksheet.row_styles[row_attributes['r'].content] = { :style => row_style  }
+          worksheet.row_styles[row.attributes['r'].content] = { :style => row_style  }
 
-          if !row_attributes['ht'].nil?  && (!row_attributes['ht'].content.nil? || row_attributes['ht'].content.strip != "" )
-            worksheet.change_row_height(Integer(row_attributes['r'].content)-1, Float(row_attributes['ht'].content))
+          if !row.attributes['ht'].nil?  && (!row.attributes['ht'].content.nil? || row.attributes['ht'].content.strip != "" )
+            worksheet.change_row_height(Integer(row.attributes['r'].content)-1, Float(row.attributes['ht'].content))
           end
           ##end row styles##
         end
 
-        c_row = row.search('./xmlns:c')
-        c_row.each do |value|
-          value_attributes= value.attributes
-          cell_index = Parser.convert_to_index(value_attributes['r'].content)
-          style_index = nil
-
-          data_type = value_attributes['t'].content if value_attributes['t']
-          element_hash ={}
-          value.children.each do |node|
-            element_hash["#{node.name()}_element"]=node
-          end
+        row.search('./xmlns:c').each do |value|
+          # Scan attributes
+          cell_index = Parser.convert_to_index(value.attributes['r'].content)
+          data_type = value.attributes['t'].content if value.attributes['t']
+          
           # v is the value element that is part of the cell
-          if element_hash["v_element"]
-            v_element_content = element_hash["v_element"].content
-          else
-            v_element_content=""
-          end
-          if v_element_content =="" #no data
+          v_element = value > 'v'
+          v_element = v_element ? v_element.content : ""
+
+          # Parse out cell data
+          if v_element == "" # no data
             cell_data = nil
-          elsif data_type == 's' #shared string
-            str_index = Integer(v_element_content)
-            cell_data = worksheet.workbook.shared_strings[str_index].to_s
-          elsif data_type=='str' #raw string
-            cell_data = v_element_content
-          elsif data_type=='e' #error
-            cell_data = v_element_content
-          else# (value.css('v').to_s != "") && (value.css('v').children.to_s != "") #is number
+          elsif data_type == 's' # shared string
+            cell_data = worksheet.workbook.shared_strings[Integer(v_element)].to_s
+          elsif data_type == 'str' # raw string
+            cell_data = v_element
+          elsif data_type == 'e' # error
+            cell_data = v_element
+          else # (value.css('v').to_s != "") && (value.css('v').children.to_s != "") #is number
             data_type = ''
-            if(v_element_content =~ /\./) #is float
-              cell_data = Float(v_element_content)
+            if v_element =~ /\./ #is float
+              cell_data = Float(v_element)
             else
-              cell_data = Integer(v_element_content)
+              cell_data = Integer(v_element)
             end
           end
+          
+          # f contains the formula
+          f_element = value > 'f'
+
+          # Parse out formula
           cell_formula = nil
-          fmla_css = element_hash["f_element"]
-          if fmla_css && fmla_css.content
-            fmla_css_content= fmla_css.content
-            if(fmla_css_content != "")
-              cell_formula = fmla_css_content
-              cell_formula_attr = {}
-              fmla_css_attributes = fmla_css.attributes
-              cell_formula_attr['t'] = fmla_css_attributes['t'].content if fmla_css_attributes['t']
-              cell_formula_attr['ref'] = fmla_css_attributes['ref'].content if fmla_css_attributes['ref']
-              cell_formula_attr['si'] = fmla_css_attributes['si'].content if fmla_css_attributes['si']
-            end
+          cell_formula_attr = {}
+          if f_element && f_element.content && f_element.content != ''
+            cell_formula = f_element.content
+            cell_formula_attr['t'] = f_element.attributes['t'].content if f_element.attributes['t']
+            cell_formula_attr['ref'] = f_element.attributes['ref'].content if f_element.attributes['ref']
+            cell_formula_attr['si'] = f_element.attributes['si'].content if f_element.attributes['si']
           end
 
+          # Get style
+          style_index = 0
           unless @data_only
-            style_index = value['s'].to_i #nil goes to 0 (default)
-          else
-            style_index = 0
+            style_index = value['s'].to_i # nil goes to 0 (default)
           end
 
-          worksheet.sheet_data[cell_index[0]][cell_index[1]] =
-            Cell.new(worksheet, cell_index[0], cell_index[1], cell_data, cell_formula,
-              data_type, style_index, cell_formula_attr)
+          # Add Cell
+          worksheet.sheet_data[cell_index[0]][cell_index[1]] = Cell.new(worksheet, cell_index[0], cell_index[1],
+            cell_data, cell_formula, data_type, style_index, cell_formula_attr)
         end
       end
     end

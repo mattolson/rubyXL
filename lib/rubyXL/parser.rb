@@ -254,6 +254,7 @@ module RubyXL
             style_index = 0
           end
 
+          wb.worksheets[i].sheet_data[cell_index[0]] ||= Array.new
           wb.worksheets[i].sheet_data[cell_index[0]][cell_index[1]] =
             Cell.new(wb.worksheets[i],cell_index[0],cell_index[1],cell_data,cell_formula,
               data_type,style_index,cell_formula_attr)

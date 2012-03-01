@@ -9,7 +9,7 @@ class Worksheet < PrivateClass
     @workbook = workbook
 
     @sheet_name = sheet_name
-    @sheet_data = sheet_data
+    @sheet_data = SheetData.new(sheet_data)
     @cols = cols
     @merged_cells = merged_cells
     @row_styles={}

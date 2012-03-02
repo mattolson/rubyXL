@@ -146,10 +146,8 @@ module RubyXL
       # parse the worksheets
       for i in 0..@num_sheets-1
         filename = 'sheet' + (i+1).to_s + '.xml'
-        worksheet_xml = Parser.parse_xml(File.join(dir_path, 'xl', 'worksheets', filename))
-        wb.worksheets[i] = Worksheet.new(wb, sheet_names[i].to_s)
-        Parser.fill_worksheet(wb.worksheets[i], worksheet_xml)
-        worksheet_xml = nil
+        wb.worksheets[i] = Parser.parse_worksheet(wb, File.join(dir_path, 'xl', 'worksheets', filename))
+        wb.worksheets[i].sheet_name = sheet_names[i].to_s
       end
 
       # cleanup
@@ -225,18 +223,21 @@ module RubyXL
       puts "[#{Time.now}] done." if @@debug
     end
 
-    # populate worksheet
-    def self.fill_worksheet(worksheet, worksheet_xml)
-      puts "[#{Time.now}] Filling worksheet '#{worksheet.sheet_name}'..." if @@debug
-      namespaces = worksheet_xml.root.namespaces()
+    # parse worksheet
+    def self.parse_worksheet(wb, filename)
+      worksheet = Worksheet.new(wb)
+      
+      puts "[#{Time.now}] Parsing '#{filename}'..." if @@debug
+      worksheet_xml = Parser.parse_xml(filename)
+      puts "[#{Time.now}] done." if @@debug
 
       unless @data_only
-        sheet_views_node = worksheet_xml.xpath('/xmlns:worksheet/xmlns:sheetViews[xmlns:sheetView]', namespaces).first
+        sheet_views_node = worksheet_xml.xpath('/xmlns:worksheet/xmlns:sheetViews[xmlns:sheetView]').first
         worksheet.sheet_view = Hash.xml_node_to_hash(sheet_views_node)[:sheetView]
         sheet_views_node = nil
 
         ##col styles##
-        cols_node_set = worksheet_xml.xpath('/xmlns:worksheet/xmlns:cols',namespaces)
+        cols_node_set = worksheet_xml.xpath('/xmlns:worksheet/xmlns:cols')
         unless cols_node_set.empty?
           worksheet.cols = Hash.xml_node_to_hash(cols_node_set.first)[:col]
         end
@@ -244,7 +245,7 @@ module RubyXL
         ##end col styles##
 
         ##merge_cells##
-        merge_cells_node = worksheet_xml.xpath('/xmlns:worksheet/xmlns:mergeCells[xmlns:mergeCell]',namespaces)
+        merge_cells_node = worksheet_xml.xpath('/xmlns:worksheet/xmlns:mergeCells[xmlns:mergeCell]')
         unless merge_cells_node.empty?
           worksheet.merged_cells = Hash.xml_node_to_hash(merge_cells_node.first)[:mergeCell]
         end
@@ -256,7 +257,7 @@ module RubyXL
         ##end sheet_view pane##
 
         ##data_validation##
-        data_validations_node = worksheet_xml.xpath('/xmlns:worksheet/xmlns:dataValidations[xmlns:dataValidation]',namespaces)
+        data_validations_node = worksheet_xml.xpath('/xmlns:worksheet/xmlns:dataValidations[xmlns:dataValidation]')
         worksheet.validations = nil
         unless data_validations_node.empty?
           worksheet.validations = Hash.xml_node_to_hash(data_validations_node.first)[:dataValidation]
@@ -265,7 +266,7 @@ module RubyXL
         ##end data_validation##
 
         #extLst
-        ext_list_node = worksheet_xml.xpath('/xmlns:worksheet/xmlns:extLst',namespaces)
+        ext_list_node = worksheet_xml.xpath('/xmlns:worksheet/xmlns:extLst')
         worksheet.extLst = nil
         unless ext_list_node.empty?
           worksheet.extLst = Hash.xml_node_to_hash(ext_list_node.first)
@@ -274,7 +275,7 @@ module RubyXL
         #extLst
 
         ##legacy drawing##
-        legacy_drawing_node = worksheet_xml.xpath('/xmlns:worksheet/xmlns:legacyDrawing',namespaces)
+        legacy_drawing_node = worksheet_xml.xpath('/xmlns:worksheet/xmlns:legacyDrawing')
         worksheet.legacy_drawing = nil
         unless legacy_drawing_node.empty?
           worksheet.legacy_drawing = Hash.xml_node_to_hash(legacy_drawing_node.first)
@@ -284,7 +285,7 @@ module RubyXL
       end
 
       # Loop through rows
-      worksheet_xml.xpath('/xmlns:worksheet/xmlns:sheetData/xmlns:row',namespaces).each_with_index do |row, row_index|
+      worksheet_xml.xpath('/xmlns:worksheet/xmlns:sheetData/xmlns:row').each_with_index do |row, row_index|
         puts "[#{Time.now}] Processing row #{row_index}..." if @@debug && row_index % 10 == 0
 
         unless @data_only
@@ -355,6 +356,8 @@ module RubyXL
             cell_data, cell_formula, data_type, style_index, cell_formula_attr)
         end
       end
+      
+      worksheet
     end
     
     def self.parse_xml(path)

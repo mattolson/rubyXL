@@ -321,10 +321,12 @@ module RubyXL
             for_element 'sheetViews' do
               sv = outer_xml
               puts "Found sheet view: #{sv}" if @@debug
-              worksheet.sheet_view = Hash.xml_node_to_hash(RubyXL::Parser.parse_xml(sv))
-              puts "Parsed sheet views: #{worksheet.sheet_view}" if @@debug
+              sv = RubyXL::Parser.parse_xml(sv)
+              puts "Parsed sheet views: type = #{sv.type}; obj = #{sv}" if @@debug
+              worksheet.sheet_view = Hash.xml_node_to_hash(sv)
+              puts "Hash of sheet views object: #{worksheet.sheet_view}" if @@debug
               worksheet.sheet_view = worksheet.sheet_view[:sheetView]
-              puts "Parsed sheet view: #{worksheet.sheet_view}" if @@debug
+              puts "Hash of sheet view array: #{worksheet.sheet_view}" if @@debug
             end
           end
           
@@ -466,10 +468,14 @@ module RubyXL
       worksheet
     end
     
+    def self.parse_options()
+      opts = Nokogiri::XML::ParseOptions::DEFAULT_XML
+      opts |= Nokogiri::XML::ParseOptions::COMPACT if @read_only
+      opts
+    end
+    
     def self.parse_xml(blob)
-      parse_options = Nokogiri::XML::ParseOptions::DEFAULT_XML
-      parse_options |= Nokogiri::XML::ParseOptions::COMPACT if @read_only
-      Nokogiri::XML.parse(blob, nil, nil, parse_options)
+      Nokogiri::XML.parse(blob, nil, nil, self.parse_options)
     end
 
     def self.parse_xml_file(path)
@@ -479,7 +485,7 @@ module RubyXL
       if File.exist?(path)
         puts "[#{Time.now}] Parsing #{path}..." if @@debug
         File.open(path, 'rb') do |f|
-          retval = parse_xml(f.read)
+          Nokogiri::XML.parse(f, nil, nil, self.parse_options)
         end
         puts "[#{Time.now}] done." if @@debug
       end

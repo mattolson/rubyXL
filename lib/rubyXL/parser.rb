@@ -485,7 +485,7 @@ module RubyXL
       if File.exist?(path)
         puts "[#{Time.now}] Parsing #{path}..." if @@debug
         File.open(path, 'rb') do |f|
-          Nokogiri::XML.parse(f, nil, nil, self.parse_options)
+          retval = Nokogiri::XML.parse(f, nil, nil, self.parse_options)
         end
         puts "[#{Time.now}] done." if @@debug
       end

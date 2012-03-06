@@ -344,7 +344,7 @@ module RubyXL
                     cell_data = value
                   elsif data_type == 'e' # error
                     cell_data = value
-                  else # (value.css('v').to_s != "") && (value.css('v').children.to_s != "") #is number
+                  elsif !value.nil? && value != ''
                     data_type = ''
                     if value =~ /\./ #is float
                       cell_data = Float(value)

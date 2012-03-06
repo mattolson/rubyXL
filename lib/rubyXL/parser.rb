@@ -55,7 +55,7 @@ module RubyXL
     end
     
     def value
-      @node.value.strip
+      @node.value? @node.value.strip : nil
     end
 
     def is_start?

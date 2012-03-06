@@ -53,6 +53,10 @@ module RubyXL
     def inner_xml
       @node.inner_xml.strip
     end
+
+    def outer_xml
+      @node.outer_xml.strip
+    end
     
     def value
       @node.value.nil? ? nil : @node.value.strip

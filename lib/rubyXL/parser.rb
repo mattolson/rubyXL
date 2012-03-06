@@ -232,6 +232,8 @@ module RubyXL
           
           inside_element 'si' do
             for_element 't' do
+              puts "Found sst > si > t: #{inner_xml}" if @@debug
+              
               if value?
                 str = value
                 wb.shared_strings[i] = str

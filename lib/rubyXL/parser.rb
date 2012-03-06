@@ -195,37 +195,7 @@ module RubyXL
 
       # extract everything we need from sharedStrings.xml
       wb.shared_strings = {}
-      shared_strings_xml = Parser.parse_xml_file(File.join(dir_path, 'xl', 'sharedStrings.xml'))
-      unless shared_strings_xml.nil?
-        puts "[#{Time.now}] Processing shared strings (phase 1)..." if @@debug
-        wb.shared_strings_XML = shared_strings_xml.to_s unless @read_only
-        wb.num_strings = Integer(shared_strings_xml.css('sst').attribute('count').value())
-        wb.size = Integer(shared_strings_xml.css('sst').attribute('uniqueCount').value())
-        puts "[#{Time.now}] done." if @@debug
-
-        puts "[#{Time.now}] Processing shared strings (phase 2)..." if @@debug
-        shared_strings_xml.css('si').each_with_index do |node, i|
-          # Merge si > r > t into si > t; unnecessary?
-          unless node.css('r').empty?
-            text = node.css('r t').children.to_a.join
-            node.children.remove
-            node << "<t xml:space=\"preserve\">#{text}</t>"
-          end
-
-          # Build two way hash for shared strings
-          node.css('t').each do |t|
-            t = t.child
-            unless t.nil?
-              str = t.content
-              wb.shared_strings[i] = str
-              wb.shared_strings[str] = i unless @read_only
-            end
-          end
-        end
-        puts "[#{Time.now}] done." if @@debug
-
-        shared_strings_xml = nil
-      end
+      parse_shared_strings(wb, File.join(dir_path, 'xl', 'sharedStrings.xml'))
 
       # parse the worksheets
       for i in 0..@num_sheets-1
@@ -240,6 +210,56 @@ module RubyXL
     end
 
     private
+    
+    def self.parse_shared_strings(wb, filename)
+      # Store the whole file for later in case we need to write it out
+      if !@read_only and File.exists?(filename)
+        File.open(filename, 'rb') do |f|
+          wb.shared_strings_XML = f.read
+        end
+      end
+
+      i = 0
+
+      # Parse the file
+      puts "[#{Time.now}] Processing shared strings..." if @@debug
+      Reader.new(filename) do
+        for_element 'sst' do
+          wb.num_strings = Integer(attribute('count'))
+          wb.size = Integer(attribute('uniqueCount'))
+          
+          inside_element do
+            for_element 'si' do
+              inside_element do
+                #inside_element 'r' do
+                #  for_element 't' do
+                #  end
+                #end
+
+                for_element 't' do
+                  unless content.nil?
+                    wb.shared_strings[i] = content
+                    wb.shared_strings[content] = i unless @read_only
+                  end
+                end
+              end
+            
+              i += 1
+            end
+          end
+        end
+      end
+      puts "[#{Time.now}] done." if @@debug
+
+      # Merge si > r > t into si > t; unnecessary?
+      #shared_strings_xml.css('si').each_with_index do |node, i|
+      #  unless node.css('r').empty?
+      #    text = node.css('r t').children.to_a.join
+      #    node.children.remove
+      #    node << "<t xml:space=\"preserve\">#{text}</t>"
+      #  end
+      #end
+    end
 
     # parse worksheet
     def self.parse_worksheet(wb, filename)

@@ -330,7 +330,7 @@ module RubyXL
                 ##end row styles##
               end
 
-              inside_element 'c' do
+              for_element 'c' do
                 puts "Found <c>: #{inner_xml}" if @@debug
                 puts "cell index: #{attribute('r')}" if @@debug
                 
@@ -371,8 +371,8 @@ module RubyXL
 
                 # Get style
                 style_index = 0
-                for_element 's' do
-                  unless @data_only
+                unless @data_only
+                  for_element 's' do
                     style_index = value.to_i # nil goes to 0 (default)
                   end
                 end

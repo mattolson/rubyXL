@@ -375,6 +375,7 @@ module RubyXL
                 end
 
                 # Add Cell
+                puts "Adding cell #{cell_index[0]}#{cell_index[1]}: #{cell_data}" if @@debug
                 worksheet.sheet_data[cell_index[0]][cell_index[1]] = Cell.new(worksheet, cell_index[0], cell_index[1],
                   cell_data, cell_formula, data_type, style_index, cell_formula_attr)
               end

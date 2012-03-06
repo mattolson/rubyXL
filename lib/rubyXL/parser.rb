@@ -490,7 +490,7 @@ module RubyXL
           end
           puts "[#{Time.now}] done." if @@debug
         end
-      else
+      elsif File.exists?(path)
         puts "[#{Time.now}] Reading #{path}..." if @@debug
         File.open(path, 'rb') do |f|
           retval = f.read

@@ -231,9 +231,9 @@ module RubyXL
           wb.size = Integer(attribute('uniqueCount'))
           
           inside_element do
-            inside_element 'si' do
-              for_element 't' do
-                inside_element do
+            for_element 'si' do
+              inside_element do
+                inside_element 't' do
                   if value?
                     str = value
                     wb.shared_strings[i] = str
@@ -241,8 +241,8 @@ module RubyXL
                     puts "shared_strings[#{i}] = '#{str}'." if @@debug
                   end
                 end
-                i += 1
               end
+              i += 1
             end
           end
         end

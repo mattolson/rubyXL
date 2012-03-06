@@ -337,22 +337,26 @@ module RubyXL
                 # Scan attributes
                 cell_index = Parser.convert_to_index(attribute('r'))
                 data_type = attribute('t')
-              
-                # Get cell data and coerce type
+                
+                # Parse contents
+                cell_xml = Nokogiri::XML.parse(inner_xml)
+
                 cell_data = nil
-                for_element 'v' do
+                v = cell_xml.at('./v')
+                unless v.nil?
+                  # Get cell data and coerce type
                   if data_type == 's' # shared string
-                    cell_data = worksheet.workbook.shared_strings[Integer(value)]
+                    cell_data = worksheet.workbook.shared_strings[Integer(v.content)]
                   elsif data_type == 'str' # raw string
-                    cell_data = value
+                    cell_data = v.content
                   elsif data_type == 'e' # error
-                    cell_data = value
-                  elsif !value.nil? && value != ''
+                    cell_data = v.content
+                  elsif !v.content.nil? && v.content != ''
                     data_type = ''
                     if value =~ /\./ #is float
-                      cell_data = Float(value)
+                      cell_data = Float(v.content)
                     else
-                      cell_data = Integer(value)
+                      cell_data = Integer(v.content)
                     end
                   end
                 end
@@ -360,25 +364,25 @@ module RubyXL
                 # Parse out formula
                 cell_formula = nil
                 cell_formula_attr = {}
-                for_element 'f' do
-                  if !value.nil? && value != ''
-                    cell_formula = value
-                    cell_formula_attr['t'] = attribute('t')
-                    cell_formula_attr['ref'] = attribute('ref')
-                    cell_formula_attr['si'] = attribute('si')
-                  end
+                f = cell_xml.at('./f')
+                unless f.nil?
+                  cell_formula = f.content
+                  cell_formula_attr['t'] = f.attribute('t')
+                  cell_formula_attr['ref'] = f.attribute('ref')
+                  cell_formula_attr['si'] = f.attribute('si')
                 end
 
                 # Get style
                 style_index = 0
                 unless @data_only
-                  for_element 's' do
-                    style_index = value.to_i # nil goes to 0 (default)
+                  s = cell_xml.at('./s')
+                  unless s.content.nil? || s.content == ''
+                    style_index = s.content.to_i
                   end
                 end
 
                 # Add Cell
-                puts "Adding cell #{cell_index[0]}#{cell_index[1]}: #{cell_data}" if @@debug
+                puts "Adding cell [#{cell_index[0]}][#{cell_index[1]}]: #{cell_data}" if @@debug
                 worksheet.sheet_data[cell_index[0]][cell_index[1]] = Cell.new(worksheet, cell_index[0], cell_index[1],
                   cell_data, cell_formula, data_type, style_index, cell_formula_attr)
               end

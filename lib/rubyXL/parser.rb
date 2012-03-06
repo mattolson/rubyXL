@@ -233,8 +233,6 @@ module RubyXL
           inside_element do
             inside_element 'si' do
               inside_element 't' do
-                puts "Found sst > si > t: #{inner_xml}" if @@debug
-
                 if value?
                   str = value
                   wb.shared_strings[i] = str
@@ -326,14 +324,15 @@ module RubyXL
                 unless v.nil?
                   # Get cell data and coerce type
                   if data_type == 's' # shared string
-                    cell_data = worksheet.workbook.shared_strings[Integer(v.content)]
+                    cell_data = wb.shared_strings[Integer(v.content)]
+                    puts "Using shared string: wb.shared_strings[#{Integer(v.content)}] = #{cell_data} for cell [#{cell_index[0]}][#{cell_index[1]}]" if @@debug
                   elsif data_type == 'str' # raw string
                     cell_data = v.content
                   elsif data_type == 'e' # error
                     cell_data = v.content
                   elsif !v.content.nil? && v.content != ''
                     data_type = ''
-                    if value =~ /\./ #is float
+                    if v.content =~ /\./ #is float
                       cell_data = Float(v.content)
                     else
                       cell_data = Integer(v.content)

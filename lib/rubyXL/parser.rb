@@ -318,7 +318,7 @@ module RubyXL
       Reader.new(filename) do
         inside_element 'worksheet' do
           unless @data_only
-            inside_element 'sheetViews' do
+            for_element 'sheetViews' do
               sv = outer_xml
               puts "Found sheet view: #{sv}" if @@debug
               worksheet.sheet_view = Hash.xml_node_to_hash(Nokogiri::XML.parse(sv))[:sheetView]

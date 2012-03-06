@@ -227,23 +227,23 @@ module RubyXL
       puts "[#{Time.now}] Processing shared strings..." if @@debug
       Reader.new(filename) do
         for_element 'sst' do
-          puts "Found sst: #{inner_xml}" if @@debug
-
           wb.num_strings = Integer(attribute('count'))
           wb.size = Integer(attribute('uniqueCount'))
           
-          inside_element 'si' do
-            puts "Found sst > si: #{inner_xml}" if @@debug
+          inside_element do
+            inside_element 'si' do
+              puts "Found sst > si: #{inner_xml}" if @@debug
 
-            for_element 't' do
-              puts "Found sst > si > t: #{inner_xml}" if @@debug
-              
-              if value?
-                str = value
-                wb.shared_strings[i] = str
-                wb.shared_strings[str] = i unless @read_only
-                puts "shared_strings[#{i}] = '#{str}'." if @@debug
-                i += 1
+              for_element 't' do
+                puts "Found sst > si > t: #{inner_xml}" if @@debug
+
+                if value?
+                  str = value
+                  wb.shared_strings[i] = str
+                  wb.shared_strings[str] = i unless @read_only
+                  puts "shared_strings[#{i}] = '#{str}'." if @@debug
+                  i += 1
+                end
               end
             end
           end

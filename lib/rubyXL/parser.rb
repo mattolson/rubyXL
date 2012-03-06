@@ -321,7 +321,9 @@ module RubyXL
             for_element 'sheetViews' do
               sv = outer_xml
               puts "Found sheet view: #{sv}" if @@debug
-              worksheet.sheet_view = Hash.xml_node_to_hash(Nokogiri::XML.parse(sv))[:sheetView]
+              worksheet.sheet_view = Hash.xml_node_to_hash(Nokogiri::XML.parse(sv))
+              puts "Parsed sheet views: #{worksheet.sheet_view}" if @@debug
+              worksheet.sheet_view = worksheet.sheet_view[:sheetView]
               puts "Parsed sheet view: #{worksheet.sheet_view}" if @@debug
             end
           end

@@ -91,7 +91,7 @@ module RubyXL
 
   class Parser
     @@parsed_column_hash = {}
-    @@debug = true
+    @@debug = false
     
     # converts cell string (such as "AA1") to matrix indices
     def self.convert_to_index(cell_string)

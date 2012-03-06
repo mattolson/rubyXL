@@ -59,7 +59,11 @@ module RubyXL
     end
     
     def value
-      @node.value.nil? ? nil : @node.value.strip
+      value? ? @node.value : nil
+    end
+
+    def value?
+      @node.value?
     end
 
     def is_start?
@@ -95,7 +99,7 @@ module RubyXL
 
   class Parser
     @@parsed_column_hash = {}
-    @@debug = false
+    @@debug = true
     
     # converts cell string (such as "AA1") to matrix indices
     def self.convert_to_index(cell_string)
@@ -237,10 +241,11 @@ module RubyXL
                 #end
 
                 for_element 't' do
-                  str = value
-                  unless str.nil?
+                  if value?
+                    str = value
                     wb.shared_strings[i] = str
                     wb.shared_strings[str] = i unless @read_only
+                    puts "shared_strings[#{i}] = '#{str}'." if @@debug
                   end
                 end
               end

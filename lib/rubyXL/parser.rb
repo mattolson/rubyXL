@@ -319,14 +319,7 @@ module RubyXL
         inside_element 'worksheet' do
           unless @data_only
             for_element 'sheetViews' do
-              sv = outer_xml
-              puts "Found sheet view: #{sv}" if @@debug
-              sv = RubyXL::Parser.parse_xml(sv).root
-              puts "Parsed sheet views: type = #{sv.type}; obj = #{sv}" if @@debug
-              worksheet.sheet_view = Hash.xml_node_to_hash(sv)
-              puts "Hash of sheet views object: #{worksheet.sheet_view}" if @@debug
-              worksheet.sheet_view = worksheet.sheet_view[:sheetView]
-              puts "Hash of sheet view array: #{worksheet.sheet_view}" if @@debug
+              worksheet.sheet_view = Hash.xml_node_to_hash(RubyXL::Parser.parse_xml(outer_xml).root)[:sheetView]
             end
           end
           

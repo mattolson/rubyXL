@@ -232,9 +232,7 @@ module RubyXL
           
           inside_element do
             inside_element 'si' do
-              puts "Found sst > si: #{inner_xml}" if @@debug
-
-              for_element 't' do
+              inside_element 't' do
                 puts "Found sst > si > t: #{inner_xml}" if @@debug
 
                 if value?

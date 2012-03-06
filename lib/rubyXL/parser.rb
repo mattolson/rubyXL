@@ -307,83 +307,84 @@ module RubyXL
       worksheet = Worksheet.new(wb)
       
       puts "[#{Time.now}] Parsing '#{filename}'..." if @@debug
-      worksheet_xml = Parser.parse_xml(filename)
       Reader.new(filename) do
-        row_index = 0
         inside_element 'worksheet' do
           inside_element 'sheetData' do
+            row_index = 0
             inside_element 'row' do
-              
-              puts "[#{Time.now}] Processing row #{row_index}..." if @@debug && row_index % 10 == 0
-              unless @data_only
-                ##row styles##
-                row_style = '0'
-                row_style = attribute('s') unless attribute('s').nil?
+              if is_end?
+                row_index += 1 
+              else
+                puts "[#{Time.now}] Processing row #{row_index}..." if @@debug && row_index % 10 == 0
+                unless @data_only
+                  ##row styles##
+                  row_style = '0'
+                  row_style = attribute('s') unless attribute('s').nil?
 
-                worksheet.row_styles[attribute('r')] = { :style => row_style  }
+                  worksheet.row_styles[attribute('r')] = { :style => row_style  }
 
-                if !attribute('ht').nil? && !attribute('ht').strip == ""
-                  worksheet.change_row_height(Integer(attribute('r'))-1, Float(attribute('ht')))
+                  if !attribute('ht').nil? && !attribute('ht').strip == ""
+                    worksheet.change_row_height(Integer(attribute('r'))-1, Float(attribute('ht')))
+                  end
+                  ##end row styles##
                 end
-                ##end row styles##
-              end
 
-              for_element 'c' do
-                # Scan attributes
-                cell_index = Parser.convert_to_index(attribute('r'))
-                data_type = attribute('t')
+                for_element 'c' do
+                  # Scan attributes
+                  cell_index = Parser.convert_to_index(attribute('r'))
+                  data_type = attribute('t')
                 
-                # Get cell data and coerce type
-                cell_data = nil
-                inside_element 'v' do
-                  if data_type == 's' # shared string
-                    cell_data = worksheet.workbook.shared_strings[Integer(value)]
-                  elsif data_type == 'str' # raw string
-                    cell_data = value
-                  elsif data_type == 'e' # error
-                    cell_data = value
-                  else # (value.css('v').to_s != "") && (value.css('v').children.to_s != "") #is number
-                    data_type = ''
-                    if value =~ /\./ #is float
-                      cell_data = Float(value)
-                    else
-                      cell_data = Integer(value)
+                  # Get cell data and coerce type
+                  cell_data = nil
+                  inside_element 'v' do
+                    if data_type == 's' # shared string
+                      cell_data = worksheet.workbook.shared_strings[Integer(value)]
+                    elsif data_type == 'str' # raw string
+                      cell_data = value
+                    elsif data_type == 'e' # error
+                      cell_data = value
+                    else # (value.css('v').to_s != "") && (value.css('v').children.to_s != "") #is number
+                      data_type = ''
+                      if value =~ /\./ #is float
+                        cell_data = Float(value)
+                      else
+                        cell_data = Integer(value)
+                      end
                     end
                   end
-                end
                 
-                # Parse out formula
-                cell_formula = nil
-                cell_formula_attr = {}
-                inside_element 'f' do
-                  if !value.nil? && value != ''
-                    cell_formula = value
-                    cell_formula_attr['t'] = attribute('t')
-                    cell_formula_attr['ref'] = attribute('ref')
-                    cell_formula_attr['si'] = attribute('si')
+                  # Parse out formula
+                  cell_formula = nil
+                  cell_formula_attr = {}
+                  inside_element 'f' do
+                    if !value.nil? && value != ''
+                      cell_formula = value
+                      cell_formula_attr['t'] = attribute('t')
+                      cell_formula_attr['ref'] = attribute('ref')
+                      cell_formula_attr['si'] = attribute('si')
+                    end
                   end
-                end
 
-                # Get style
-                style_index = 0
-                inside_element 's' do
-                  unless @data_only
-                    style_index = value.to_i # nil goes to 0 (default)
+                  # Get style
+                  style_index = 0
+                  inside_element 's' do
+                    unless @data_only
+                      style_index = value.to_i # nil goes to 0 (default)
+                    end
                   end
-                end
 
-                # Add Cell
-                worksheet.sheet_data[cell_index[0]][cell_index[1]] = Cell.new(worksheet, cell_index[0], cell_index[1],
-                  cell_data, cell_formula, data_type, style_index, cell_formula_attr)
+                  # Add Cell
+                  worksheet.sheet_data[cell_index[0]][cell_index[1]] = Cell.new(worksheet, cell_index[0], cell_index[1],
+                    cell_data, cell_formula, data_type, style_index, cell_formula_attr)
+                end
               end
-              row_index += 1
-
             end
           end
         end
       end
       puts "[#{Time.now}] done." if @@debug
 
+      worksheet_xml = Parser.parse_xml(filename)
       unless @data_only
         sheet_views_node = worksheet_xml.xpath('/xmlns:worksheet/xmlns:sheetViews[xmlns:sheetView]').first
         worksheet.sheet_view = Hash.xml_node_to_hash(sheet_views_node)[:sheetView]

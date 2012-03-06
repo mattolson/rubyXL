@@ -313,6 +313,13 @@ module RubyXL
       puts "[#{Time.now}] Parsing '#{filename}'..." if @@debug
       Reader.new(filename) do
         inside_element 'worksheet' do
+          unless @data_only
+            inside_element 'sheetViews' do
+              worksheet.sheet_view = Hash.xml_node_to_hash(Nokogiri::XML.parse(outer_xml))[:sheetView]
+              puts "Found sheet view: #{worksheet.sheet_view}" if @@debug
+            end
+          end
+          
           inside_element 'sheetData' do
             inside_element 'row' do
               unless @data_only
@@ -396,9 +403,9 @@ module RubyXL
 
       worksheet_xml = Parser.parse_xml(filename)
       unless @data_only
-        sheet_views_node = worksheet_xml.xpath('/xmlns:worksheet/xmlns:sheetViews[xmlns:sheetView]').first
-        worksheet.sheet_view = Hash.xml_node_to_hash(sheet_views_node)[:sheetView]
-        sheet_views_node = nil
+        #sheet_views_node = worksheet_xml.xpath('/xmlns:worksheet/xmlns:sheetViews[xmlns:sheetView]').first
+        #worksheet.sheet_view = Hash.xml_node_to_hash(sheet_views_node)[:sheetView]
+        #sheet_views_node = nil
 
         ##col styles##
         cols_node_set = worksheet_xml.xpath('/xmlns:worksheet/xmlns:cols')

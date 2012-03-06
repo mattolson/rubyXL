@@ -376,7 +376,7 @@ module RubyXL
                 style_index = 0
                 unless @data_only
                   s = cell_xml.at('./s')
-                  unless s.content.nil? || s.content == ''
+                  unless s.nil? || s.content.nil? || s.content == ''
                     style_index = s.content.to_i
                   end
                 end

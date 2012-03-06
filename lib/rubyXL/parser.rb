@@ -344,6 +344,8 @@ module RubyXL
                 cell_data = nil
                 v = cell_xml.at('./v')
                 unless v.nil?
+                  puts "Found <v>: #{v.content}" if @@debug
+
                   # Get cell data and coerce type
                   if data_type == 's' # shared string
                     cell_data = worksheet.workbook.shared_strings[Integer(v.content)]

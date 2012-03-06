@@ -237,9 +237,10 @@ module RubyXL
                 #end
 
                 for_element 't' do
-                  unless content.nil?
-                    wb.shared_strings[i] = content
-                    wb.shared_strings[content] = i unless @read_only
+                  str = value
+                  unless str.nil?
+                    wb.shared_strings[i] = str
+                    wb.shared_strings[str] = i unless @read_only
                   end
                 end
               end

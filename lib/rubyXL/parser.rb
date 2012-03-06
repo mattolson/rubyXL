@@ -95,7 +95,7 @@ module RubyXL
 
   class Parser
     @@parsed_column_hash = {}
-    @@debug = true
+    @@debug = false
     
     # converts cell string (such as "AA1") to matrix indices
     def self.convert_to_index(cell_string)
@@ -196,11 +196,11 @@ module RubyXL
         puts "[#{Time.now}] Processing shared strings (phase 2)..." if @@debug
         shared_strings_xml.css('si').each_with_index do |node, i|
           # Merge si > r > t into si > t; unnecessary?
-          #unless node.css('r').empty?
-          #  text = node.css('r t').children.to_a.join
-          #  node.children.remove
-          #  node << "<t xml:space=\"preserve\">#{text}</t>"
-          #end
+          unless node.css('r').empty?
+            text = node.css('r t').children.to_a.join
+            node.children.remove
+            node << "<t xml:space=\"preserve\">#{text}</t>"
+          end
 
           # Build two way hash for shared strings
           node.css('t').each do |t|
@@ -244,72 +244,6 @@ module RubyXL
 
     private
 
-    # fill hashes for various styles
-    def self.fill_styles(wb,style_hash)
-      puts "[#{Time.now}] Filling styles..." if @@debug
-      
-      wb.num_fmts = style_hash[:numFmts]
-
-      ###FONTS###
-      wb.fonts = {}
-      if style_hash[:fonts][:attributes][:count]==1
-        style_hash[:fonts][:font] = [style_hash[:fonts][:font]]
-      end
-
-      style_hash[:fonts][:font].each_with_index do |f,i|
-        wb.fonts[i.to_s] = {:font=>f,:count=>0}
-      end
-
-      ###FILLS###
-      wb.fills = {}
-      if style_hash[:fills][:attributes][:count]==1
-        style_hash[:fills][:fill] = [style_hash[:fills][:fill]]
-      end
-
-      style_hash[:fills][:fill].each_with_index do |f,i|
-        wb.fills[i.to_s] = {:fill=>f,:count=>0}
-      end
-
-      ###BORDERS###
-      wb.borders = {}
-      if style_hash[:borders][:attributes][:count] == 1
-        style_hash[:borders][:border] = [style_hash[:borders][:border]]
-      end
-
-      style_hash[:borders][:border].each_with_index do |b,i|
-        wb.borders[i.to_s] = {:border=>b, :count=>0}
-      end
-
-      wb.cell_style_xfs = style_hash[:cellStyleXfs]
-      wb.cell_xfs = style_hash[:cellXfs]
-      wb.cell_styles = style_hash[:cellStyles]
-
-      wb.colors = style_hash[:colors]
-
-      #fills out count information for each font, fill, and border
-      if wb.cell_xfs[:xf].is_a?(::Hash)
-        wb.cell_xfs[:xf] = [wb.cell_xfs[:xf]]
-      end
-      wb.cell_xfs[:xf].each do |style|
-        id = style[:attributes][:fontId].to_s
-        unless id.nil?
-          wb.fonts[id][:count] += 1
-        end
-
-        id = style[:attributes][:fillId].to_s
-        unless id.nil?
-          wb.fills[id][:count] += 1
-        end
-
-        id = style[:attributes][:borderId].to_s
-        unless id.nil?
-          wb.borders[id][:count] += 1
-        end
-      end
-
-      puts "[#{Time.now}] done." if @@debug
-    end
-
     # parse worksheet
     def self.parse_worksheet(wb, filename)
       worksheet = Worksheet.new(wb)
@@ -319,7 +253,32 @@ module RubyXL
         inside_element 'worksheet' do
           unless @data_only
             for_element 'sheetViews' do
-              worksheet.sheet_view = Hash.xml_node_to_hash(RubyXL::Parser.parse_xml(outer_xml).root)[:sheetView]
+              h = Hash.xml_node_to_hash(RubyXL::Parser.parse_xml(outer_xml).root)
+              worksheet.sheet_view = h[:sheetView] unless h.nil?
+              worksheet.pane = worksheet.sheet_view[:pane] unless worksheet.sheet_view.nil?
+            end
+
+            for_element 'cols' do
+              h = Hash.xml_node_to_hash(RubyXL::Parser.parse_xml(outer_xml).root)
+              worksheet.cols = h[:col] unless h.nil?
+            end
+
+            for_element 'mergeCells' do
+              h = Hash.xml_node_to_hash(RubyXL::Parser.parse_xml(outer_xml).root)
+              worksheet.merged_cells = h[:mergeCell] unless h.nil?
+            end
+
+            for_element 'dataValidations' do
+              h = Hash.xml_node_to_hash(RubyXL::Parser.parse_xml(outer_xml).root)
+              worksheet.validations = h[:dataValidation] unless h.nil?
+            end
+
+            for_element 'extLst' do
+              worksheet.extLst = Hash.xml_node_to_hash(RubyXL::Parser.parse_xml(outer_xml).root)
+            end
+
+            for_element 'legacyDrawing' do
+              worksheet.legacy_drawing = Hash.xml_node_to_hash(RubyXL::Parser.parse_xml(outer_xml).root)
             end
           end
           
@@ -404,63 +363,75 @@ module RubyXL
       end
       puts "[#{Time.now}] done." if @@debug
 
-      worksheet_xml = Parser.parse_xml_file(filename)
-      unless @data_only
-        #sheet_views_node = worksheet_xml.xpath('/xmlns:worksheet/xmlns:sheetViews[xmlns:sheetView]').first
-        #worksheet.sheet_view = Hash.xml_node_to_hash(sheet_views_node)[:sheetView]
-        #sheet_views_node = nil
-
-        ##col styles##
-        cols_node_set = worksheet_xml.xpath('/xmlns:worksheet/xmlns:cols')
-        unless cols_node_set.empty?
-          worksheet.cols = Hash.xml_node_to_hash(cols_node_set.first)[:col]
-        end
-        cols_node_set = nil
-        ##end col styles##
-
-        ##merge_cells##
-        merge_cells_node = worksheet_xml.xpath('/xmlns:worksheet/xmlns:mergeCells[xmlns:mergeCell]')
-        unless merge_cells_node.empty?
-          worksheet.merged_cells = Hash.xml_node_to_hash(merge_cells_node.first)[:mergeCell]
-        end
-        merge_cells_node = nil
-        ##end merge_cells##
-
-        ##sheet_view pane##
-        worksheet.pane = worksheet.sheet_view[:pane]
-        ##end sheet_view pane##
-
-        ##data_validation##
-        data_validations_node = worksheet_xml.xpath('/xmlns:worksheet/xmlns:dataValidations[xmlns:dataValidation]')
-        worksheet.validations = nil
-        unless data_validations_node.empty?
-          worksheet.validations = Hash.xml_node_to_hash(data_validations_node.first)[:dataValidation]
-        end
-        data_validations_node = nil
-        ##end data_validation##
-
-        #extLst
-        ext_list_node = worksheet_xml.xpath('/xmlns:worksheet/xmlns:extLst')
-        worksheet.extLst = nil
-        unless ext_list_node.empty?
-          worksheet.extLst = Hash.xml_node_to_hash(ext_list_node.first)
-        end
-        ext_list_node = nil
-        #extLst
-
-        ##legacy drawing##
-        legacy_drawing_node = worksheet_xml.xpath('/xmlns:worksheet/xmlns:legacyDrawing')
-        worksheet.legacy_drawing = nil
-        unless legacy_drawing_node.empty?
-          worksheet.legacy_drawing = Hash.xml_node_to_hash(legacy_drawing_node.first)
-        end
-        legacy_drawing_node = nil
-        ##end legacy drawing
-      end
-
       worksheet
     end
     
+    # fill hashes for various styles
+    def self.fill_styles(wb,style_hash)
+      puts "[#{Time.now}] Filling styles..." if @@debug
+      
+      wb.num_fmts = style_hash[:numFmts]
+
+      ###FONTS###
+      wb.fonts = {}
+      if style_hash[:fonts][:attributes][:count]==1
+        style_hash[:fonts][:font] = [style_hash[:fonts][:font]]
+      end
+
+      style_hash[:fonts][:font].each_with_index do |f,i|
+        wb.fonts[i.to_s] = {:font=>f,:count=>0}
+      end
+
+      ###FILLS###
+      wb.fills = {}
+      if style_hash[:fills][:attributes][:count]==1
+        style_hash[:fills][:fill] = [style_hash[:fills][:fill]]
+      end
+
+      style_hash[:fills][:fill].each_with_index do |f,i|
+        wb.fills[i.to_s] = {:fill=>f,:count=>0}
+      end
+
+      ###BORDERS###
+      wb.borders = {}
+      if style_hash[:borders][:attributes][:count] == 1
+        style_hash[:borders][:border] = [style_hash[:borders][:border]]
+      end
+
+      style_hash[:borders][:border].each_with_index do |b,i|
+        wb.borders[i.to_s] = {:border=>b, :count=>0}
+      end
+
+      wb.cell_style_xfs = style_hash[:cellStyleXfs]
+      wb.cell_xfs = style_hash[:cellXfs]
+      wb.cell_styles = style_hash[:cellStyles]
+
+      wb.colors = style_hash[:colors]
+
+      #fills out count information for each font, fill, and border
+      if wb.cell_xfs[:xf].is_a?(::Hash)
+        wb.cell_xfs[:xf] = [wb.cell_xfs[:xf]]
+      end
+      wb.cell_xfs[:xf].each do |style|
+        id = style[:attributes][:fontId].to_s
+        unless id.nil?
+          wb.fonts[id][:count] += 1
+        end
+
+        id = style[:attributes][:fillId].to_s
+        unless id.nil?
+          wb.fills[id][:count] += 1
+        end
+
+        id = style[:attributes][:borderId].to_s
+        unless id.nil?
+          wb.borders[id][:count] += 1
+        end
+      end
+
+      puts "[#{Time.now}] done." if @@debug
+    end
+
     def self.parse_options()
       opts = Nokogiri::XML::ParseOptions::DEFAULT_XML
       opts |= Nokogiri::XML::ParseOptions::COMPACT if @read_only

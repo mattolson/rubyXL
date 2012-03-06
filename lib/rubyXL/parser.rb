@@ -151,7 +151,7 @@ module RubyXL
       puts "[#{Time.now}] done." if @@debug
 
       # parse workbook.xml
-      workbook_xml = Parser.parse_xml(File.join(dir_path, 'xl', 'workbook.xml'))
+      workbook_xml = Parser.parse_xml_file(File.join(dir_path, 'xl', 'workbook.xml'))
       
       # build workbook
       @num_sheets = Integer(workbook_xml.css('sheets').children.size)
@@ -164,7 +164,7 @@ module RubyXL
       workbook_xml = nil
 
       # extract everything we need from app.xml
-      app_xml = Parser.parse_xml(File.join(dir_path, 'docProps', 'app.xml'))
+      app_xml = Parser.parse_xml_file(File.join(dir_path, 'docProps', 'app.xml'))
       sheet_names = app_xml.css('TitlesOfParts vt|vector vt|lpstr').children
       unless @data_only
         wb.company = app_xml.css('Company').children.to_s
@@ -175,7 +175,7 @@ module RubyXL
       
       # extract everything we need from core.xml
       unless @data_only
-        core_xml = Parser.parse_xml(File.join(dir_path, 'docProps', 'core.xml'))
+        core_xml = Parser.parse_xml_file(File.join(dir_path, 'docProps', 'core.xml'))
         wb.creator = core_xml.css('dc|creator').children.to_s
         wb.modifier = core_xml.css('cp|last_modified_by').children.to_s
         wb.created_at = core_xml.css('dcterms|created').children.to_s
@@ -185,7 +185,7 @@ module RubyXL
 
       # extract everything we need from sharedStrings.xml
       wb.shared_strings = {}
-      shared_strings_xml = Parser.parse_xml(File.join(dir_path, 'xl', 'sharedStrings.xml'))
+      shared_strings_xml = Parser.parse_xml_file(File.join(dir_path, 'xl', 'sharedStrings.xml'))
       unless shared_strings_xml.nil?
         puts "[#{Time.now}] Processing shared strings (phase 1)..." if @@debug
         wb.shared_strings_XML = shared_strings_xml.to_s unless @read_only
@@ -225,7 +225,7 @@ module RubyXL
         wb.worksheet_rels = Parser.read_external_files(File.join(dir_path, 'xl', 'worksheets', '_rels'))
         wb.macros = Parser.read_external_files(File.join(dir_path, 'xl', 'vbaProject.bin'))
         
-        styles_xml = Parser.parse_xml(File.join(dir_path, 'xl', 'styles.xml'))
+        styles_xml = Parser.parse_xml_file(File.join(dir_path, 'xl', 'styles.xml'))
         Parser.fill_styles(wb, Hash.xml_node_to_hash(styles_xml.root))
         styles_xml = nil
       end
@@ -321,7 +321,7 @@ module RubyXL
             for_element 'sheetViews' do
               sv = outer_xml
               puts "Found sheet view: #{sv}" if @@debug
-              worksheet.sheet_view = Hash.xml_node_to_hash(Nokogiri::XML.parse(sv))
+              worksheet.sheet_view = Hash.xml_node_to_hash(parse_xml(sv))
               puts "Parsed sheet views: #{worksheet.sheet_view}" if @@debug
               worksheet.sheet_view = worksheet.sheet_view[:sheetView]
               puts "Parsed sheet view: #{worksheet.sheet_view}" if @@debug
@@ -354,7 +354,7 @@ module RubyXL
                 data_type = attribute('t')
                 
                 # Parse contents
-                cell_xml = Nokogiri::XML.parse(inner_xml)
+                cell_xml = parse_xml(inner_xml)
 
                 cell_data = nil
                 v = cell_xml.css('v').first
@@ -409,7 +409,7 @@ module RubyXL
       end
       puts "[#{Time.now}] done." if @@debug
 
-      worksheet_xml = Parser.parse_xml(filename)
+      worksheet_xml = Parser.parse_xml_file(filename)
       unless @data_only
         #sheet_views_node = worksheet_xml.xpath('/xmlns:worksheet/xmlns:sheetViews[xmlns:sheetView]').first
         #worksheet.sheet_view = Hash.xml_node_to_hash(sheet_views_node)[:sheetView]
@@ -466,18 +466,20 @@ module RubyXL
       worksheet
     end
     
-    def self.parse_xml(path)
-      # figure out parse options
+    def self.parse_xml(blob)
       parse_options = Nokogiri::XML::ParseOptions::DEFAULT_XML
       parse_options |= Nokogiri::XML::ParseOptions::COMPACT if @read_only
+      Nokogiri::XML.parse(blob, nil, nil, parse_options)
+    end
 
+    def self.parse_xml_file(path)
       retval = nil
 
       # Open, parse, and store it
       if File.exist?(path)
         puts "[#{Time.now}] Parsing #{path}..." if @@debug
         File.open(path, 'rb') do |f|
-          retval = Nokogiri::XML.parse(f, nil, nil, parse_options)
+          retval = parse_xml(f.read)
         end
         puts "[#{Time.now}] done." if @@debug
       end

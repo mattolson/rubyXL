@@ -163,25 +163,35 @@ module RubyXL
       wb.date1904 = workbook_xml.css('workbookPr').attribute('date1904').to_s == '1'
       workbook_xml = nil
 
-      # extract everything we need from app.xml
       app_xml = Parser.parse_xml_file(File.join(dir_path, 'docProps', 'app.xml'))
       sheet_names = app_xml.css('TitlesOfParts vt|vector vt|lpstr').children
       unless @data_only
+        # extract everything we need from app.xml
         wb.company = app_xml.css('Company').children.to_s
         wb.application = app_xml.css('Application').children.to_s
         wb.appversion = app_xml.css('AppVersion').children.to_s
-      end
-      app_xml = nil
       
-      # extract everything we need from core.xml
-      unless @data_only
+        # extract everything we need from core.xml
         core_xml = Parser.parse_xml_file(File.join(dir_path, 'docProps', 'core.xml'))
         wb.creator = core_xml.css('dc|creator').children.to_s
         wb.modifier = core_xml.css('cp|last_modified_by').children.to_s
         wb.created_at = core_xml.css('dcterms|created').children.to_s
         wb.modified_at = core_xml.css('dcterms|modified').children.to_s
         core_xml = nil
+
+        # preserve external links
+        wb.external_links = Parser.read_external_files(File.join(dir_path, 'xl', 'externalLinks'))
+        wb.drawings = Parser.read_external_files(File.join(dir_path, 'xl', 'drawings'))
+        wb.printer_settings = Parser.read_external_files(File.join(dir_path, 'xl', 'printerSettings'))
+        wb.worksheet_rels = Parser.read_external_files(File.join(dir_path, 'xl', 'worksheets', '_rels'))
+        wb.macros = Parser.read_external_files(File.join(dir_path, 'xl', 'vbaProject.bin'))
+        
+        # parse styles
+        styles_xml = Parser.parse_xml_file(File.join(dir_path, 'xl', 'styles.xml'))
+        Parser.fill_styles(wb, Hash.xml_node_to_hash(styles_xml.root))
+        styles_xml = nil
       end
+      app_xml = nil
 
       # extract everything we need from sharedStrings.xml
       wb.shared_strings = {}
@@ -215,19 +225,6 @@ module RubyXL
         puts "[#{Time.now}] done." if @@debug
 
         shared_strings_xml = nil
-      end
-
-      # preserve external links
-      unless @data_only
-        wb.external_links = Parser.read_external_files(File.join(dir_path, 'xl', 'externalLinks'))
-        wb.drawings = Parser.read_external_files(File.join(dir_path, 'xl', 'drawings'))
-        wb.printer_settings = Parser.read_external_files(File.join(dir_path, 'xl', 'printerSettings'))
-        wb.worksheet_rels = Parser.read_external_files(File.join(dir_path, 'xl', 'worksheets', '_rels'))
-        wb.macros = Parser.read_external_files(File.join(dir_path, 'xl', 'vbaProject.bin'))
-        
-        styles_xml = Parser.parse_xml_file(File.join(dir_path, 'xl', 'styles.xml'))
-        Parser.fill_styles(wb, Hash.xml_node_to_hash(styles_xml.root))
-        styles_xml = nil
       end
 
       # parse the worksheets

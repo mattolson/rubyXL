@@ -232,14 +232,16 @@ module RubyXL
           
           inside_element do
             inside_element 'si' do
-              inside_element 't' do
-                if value?
-                  str = value
-                  wb.shared_strings[i] = str
-                  wb.shared_strings[str] = i unless @read_only
-                  puts "shared_strings[#{i}] = '#{str}'." if @@debug
-                  i += 1
+              for_element 't' do
+                inside_element do
+                  if value?
+                    str = value
+                    wb.shared_strings[i] = str
+                    wb.shared_strings[str] = i unless @read_only
+                    puts "shared_strings[#{i}] = '#{str}'." if @@debug
+                  end
                 end
+                i += 1
               end
             end
           end
@@ -296,19 +298,14 @@ module RubyXL
           
           inside_element 'sheetData' do
             inside_element 'row' do
-              unless @data_only
-                ##row styles##
-                if is_start?
-                  row_style = '0'
-                  row_style = attribute('s') unless attribute('s').nil?
+              if is_start? and !@data_only
+                row_style = '0'
+                row_style = attribute('s') unless attribute('s').nil?
+                worksheet.row_styles[attribute('r')] = { :style => row_style  }
 
-                  worksheet.row_styles[attribute('r')] = { :style => row_style  }
-
-                  if !attribute('ht').nil? && !attribute('ht').strip == ""
-                    worksheet.change_row_height(Integer(attribute('r'))-1, Float(attribute('ht')))
-                  end
+                if !attribute('ht').nil? && !attribute('ht').strip == ""
+                  worksheet.change_row_height(Integer(attribute('r'))-1, Float(attribute('ht')))
                 end
-                ##end row styles##
               end
 
               for_element 'c' do
@@ -323,19 +320,20 @@ module RubyXL
                 v = cell_xml.css('v').first
                 unless v.nil?
                   # Get cell data and coerce type
+                  v_content = v.content ? v.content.strip : nil
                   if data_type == 's' # shared string
-                    cell_data = wb.shared_strings[Integer(v.content)]
-                    puts "Using shared string: wb.shared_strings[#{Integer(v.content)}] = #{cell_data} for cell [#{cell_index[0]}][#{cell_index[1]}]" if @@debug
+                    cell_data = wb.shared_strings[Integer(v_content)]
+                    puts "Using shared string: wb.shared_strings[#{Integer(v_content)}] = #{cell_data} for cell [#{cell_index[0]}][#{cell_index[1]}]" if @@debug
                   elsif data_type == 'str' # raw string
-                    cell_data = v.content
+                    cell_data = v_content
                   elsif data_type == 'e' # error
-                    cell_data = v.content
-                  elsif !v.content.nil? && v.content != ''
+                    cell_data = v_content
+                  elsif !v_content.nil? && v_content != ''
                     data_type = ''
-                    if v.content =~ /\./ #is float
-                      cell_data = Float(v.content)
+                    if v_content =~ /\./ #is float
+                      cell_data = Float(v_content)
                     else
-                      cell_data = Integer(v.content)
+                      cell_data = Integer(v_content)
                     end
                   end
                 end

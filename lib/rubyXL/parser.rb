@@ -342,7 +342,7 @@ module RubyXL
                 cell_xml = Nokogiri::XML.parse(inner_xml)
 
                 cell_data = nil
-                v = cell_xml.at('./v')
+                v = cell_xml.at('./xmlns:v')
                 unless v.nil?
                   puts "Found <v>: #{v.content}" if @@debug
 

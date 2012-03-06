@@ -331,6 +331,9 @@ module RubyXL
               end
 
               inside_element 'c' do
+                puts "Found <c>: #{inner_xml}" if @@debug
+                puts "cell index: #{attribute('r')}" if @@debug
+                
                 # Scan attributes
                 cell_index = Parser.convert_to_index(attribute('r'))
                 data_type = attribute('t')

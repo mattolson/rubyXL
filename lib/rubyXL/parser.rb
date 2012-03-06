@@ -319,8 +319,10 @@ module RubyXL
         inside_element 'worksheet' do
           unless @data_only
             inside_element 'sheetViews' do
-              worksheet.sheet_view = Hash.xml_node_to_hash(Nokogiri::XML.parse(outer_xml))[:sheetView]
-              puts "Found sheet view: #{worksheet.sheet_view}" if @@debug
+              sv = outer_xml
+              puts "Found sheet view: #{sv}" if @@debug
+              worksheet.sheet_view = Hash.xml_node_to_hash(Nokogiri::XML.parse(sv))[:sheetView]
+              puts "Parsed sheet view: #{worksheet.sheet_view}" if @@debug
             end
           end
           

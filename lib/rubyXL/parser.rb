@@ -5,6 +5,85 @@ require 'date'
 require File.expand_path(File.join(File.dirname(__FILE__),'Hash'))
 
 module RubyXL
+  
+  # Slightly modified from https://gist.github.com/827475
+  # A small DSL for helping parsing documents using Nokogiri::XML::Reader. The
+  # XML Reader is a good way to move a cursor through a (large) XML document fast,
+  # but is not as cumbersome as writing a full SAX document handler. Read about
+  # it here: http://nokogiri.org/Nokogiri/XML/Reader.html
+  # 
+  # Just pass the reader in this parser and specificy the nodes that you are interested
+  # in in a block. You can just parse every node or only look inside certain nodes.
+  # 
+  # A small example:
+  # 
+  # Reader.new(filename) do
+  #   inside_element 'User' do
+  #     for_element 'Name' do puts "Username: #{inner_xml}" end
+  #     for_element 'Email' do puts "Email: #{inner_xml}" end
+  #     
+  #     for_element 'Address' do
+  #       puts 'Start of address:'
+  #       inside_element do
+  #         for_element 'Street' do puts "Street: #{inner_xml}" end
+  #         for_element 'Zipcode' do puts "Zipcode: #{inner_xml}" end
+  #         for_element 'City' do puts "City: #{inner_xml}" end
+  #       end
+  #       puts 'End of address'
+  #     end
+  #   end
+  # end
+  # 
+  # It does NOT fail on missing tags, and does not guarantee order of execution. It parses
+  # every tag regardless of nesting. The only way to guarantee scope is by using
+  # the `inside_element` method. This limits the parsing to the current or the named tag.
+  # If tags are encountered multiple times, their blocks will be called multiple times.
+  class Reader
+    def initialize(filename, &block)
+      @node = Nokogiri::XML::Reader(File.new(filename))
+      @node.each do
+        self.instance_eval &block
+      end
+    end
+
+    def name
+      @node.name
+    end
+
+    def inner_xml
+      @node.inner_xml.strip
+    end
+
+    def is_start?
+      @node.node_type == Nokogiri::XML::Reader::TYPE_ELEMENT
+    end
+
+    def is_end?
+      @node.node_type == Nokogiri::XML::Reader::TYPE_END_ELEMENT
+    end
+
+    def attribute(attribute)
+      @node.attribute(attribute)
+    end
+
+    def for_element(name, &block)
+      return unless self.name == name and is_start?
+      self.instance_eval &block
+    end
+
+    def inside_element(name=nil, &block)
+      return if @node.self_closing?
+      return unless name.nil? or (self.name == name and is_start?)
+
+      name = @node.name
+      depth = @node.depth
+
+      @node.each do
+        return if self.name == name and is_end? and @node.depth == depth
+        self.instance_eval &block
+      end
+    end
+  end
 
   class Parser
     @@parsed_column_hash = {}
@@ -229,6 +308,80 @@ module RubyXL
       
       puts "[#{Time.now}] Parsing '#{filename}'..." if @@debug
       worksheet_xml = Parser.parse_xml(filename)
+      Reader.new(filename) do
+        row_index = 0
+        inside_element 'worksheet' do
+          inside_element 'sheetData' do
+            inside_element 'row' do
+              
+              puts "[#{Time.now}] Processing row #{row_index}..." if @@debug && row_index % 10 == 0
+              unless @data_only
+                ##row styles##
+                row_style = '0'
+                row_style = attribute('s') unless attribute('s').nil?
+
+                worksheet.row_styles[attribute('r')] = { :style => row_style  }
+
+                if !attribute('ht').nil? && !attribute('ht').strip == ""
+                  worksheet.change_row_height(Integer(attribute('r'))-1, Float(attribute('ht')))
+                end
+                ##end row styles##
+              end
+
+              for_element 'c' do
+                # Scan attributes
+                cell_index = Parser.convert_to_index(attribute('r'))
+                data_type = attribute('t')
+                
+                # Get cell data and coerce type
+                cell_data = nil
+                inside_element 'v' do
+                  if data_type == 's' # shared string
+                    cell_data = worksheet.workbook.shared_strings[Integer(value)]
+                  elsif data_type == 'str' # raw string
+                    cell_data = value
+                  elsif data_type == 'e' # error
+                    cell_data = value
+                  else # (value.css('v').to_s != "") && (value.css('v').children.to_s != "") #is number
+                    data_type = ''
+                    if value =~ /\./ #is float
+                      cell_data = Float(value)
+                    else
+                      cell_data = Integer(value)
+                    end
+                  end
+                end
+                
+                # Parse out formula
+                cell_formula = nil
+                cell_formula_attr = {}
+                inside_element 'f' do
+                  if !value.nil? && value != ''
+                    cell_formula = value
+                    cell_formula_attr['t'] = attribute('t')
+                    cell_formula_attr['ref'] = attribute('ref')
+                    cell_formula_attr['si'] = attribute('si')
+                  end
+                end
+
+                # Get style
+                style_index = 0
+                inside_element 's' do
+                  unless @data_only
+                    style_index = value.to_i # nil goes to 0 (default)
+                  end
+                end
+
+                # Add Cell
+                worksheet.sheet_data[cell_index[0]][cell_index[1]] = Cell.new(worksheet, cell_index[0], cell_index[1],
+                  cell_data, cell_formula, data_type, style_index, cell_formula_attr)
+              end
+              row_index += 1
+
+            end
+          end
+        end
+      end
       puts "[#{Time.now}] done." if @@debug
 
       unless @data_only
@@ -284,79 +437,6 @@ module RubyXL
         ##end legacy drawing
       end
 
-      # Loop through rows
-      worksheet_xml.xpath('/xmlns:worksheet/xmlns:sheetData/xmlns:row').each_with_index do |row, row_index|
-        puts "[#{Time.now}] Processing row #{row_index}..." if @@debug && row_index % 10 == 0
-
-        unless @data_only
-          ##row styles##
-          row_style = '0'
-          unless row.attributes['s'].nil?
-            row_style = row.attributes['s'].value
-          end
-
-          worksheet.row_styles[row.attributes['r'].content] = { :style => row_style  }
-
-          if !row.attributes['ht'].nil? && (!row.attributes['ht'].content.nil? || row.attributes['ht'].content.strip != "")
-            worksheet.change_row_height(Integer(row.attributes['r'].content)-1, Float(row.attributes['ht'].content))
-          end
-          ##end row styles##
-        end
-
-        columns = row.search('./xmlns:c')
-        columns.each do |value|
-          # Scan attributes
-          cell_index = Parser.convert_to_index(value.attributes['r'].content)
-          data_type = value.attributes['t'].content if value.attributes['t']
-          
-          # v is the value element that is part of the cell
-          v_element = value > 'v'
-          v_element = v_element.empty? ? "" : v_element.first.content
-
-          # Parse out cell data
-          if v_element == "" # no data
-            cell_data = nil
-          elsif data_type == 's' # shared string
-            cell_data = worksheet.workbook.shared_strings[Integer(v_element)]
-          elsif data_type == 'str' # raw string
-            cell_data = v_element
-          elsif data_type == 'e' # error
-            cell_data = v_element
-          else # (value.css('v').to_s != "") && (value.css('v').children.to_s != "") #is number
-            data_type = ''
-            if v_element =~ /\./ #is float
-              cell_data = Float(v_element)
-            else
-              cell_data = Integer(v_element)
-            end
-          end
-          
-          # f contains the formula
-          f_element = value > 'f'
-          f_element = f_element.empty? ? nil : f_element.first
-
-          # Parse out formula
-          cell_formula = nil
-          cell_formula_attr = {}
-          if f_element && f_element.content && f_element.content != ''
-            cell_formula = f_element.content
-            cell_formula_attr['t'] = f_element.attributes['t'].content if f_element.attributes['t']
-            cell_formula_attr['ref'] = f_element.attributes['ref'].content if f_element.attributes['ref']
-            cell_formula_attr['si'] = f_element.attributes['si'].content if f_element.attributes['si']
-          end
-
-          # Get style
-          style_index = 0
-          unless @data_only
-            style_index = value['s'].to_i # nil goes to 0 (default)
-          end
-
-          # Add Cell
-          worksheet.sheet_data[cell_index[0]][cell_index[1]] = Cell.new(worksheet, cell_index[0], cell_index[1],
-            cell_data, cell_formula, data_type, style_index, cell_formula_attr)
-        end
-      end
-      
       worksheet
     end
     

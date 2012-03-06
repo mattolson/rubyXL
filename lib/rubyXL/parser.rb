@@ -53,6 +53,10 @@ module RubyXL
     def inner_xml
       @node.inner_xml.strip
     end
+    
+    def value
+      @node.value.strip
+    end
 
     def is_start?
       @node.node_type == Nokogiri::XML::Reader::TYPE_ELEMENT

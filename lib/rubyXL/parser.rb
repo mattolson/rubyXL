@@ -342,7 +342,7 @@ module RubyXL
                 cell_xml = Nokogiri::XML.parse(inner_xml)
 
                 cell_data = nil
-                v = cell_xml.at('./xmlns:v')
+                v = cell_xml.css('v').first
                 unless v.nil?
                   puts "Found <v>: #{v.content}" if @@debug
 
@@ -366,7 +366,7 @@ module RubyXL
                 # Parse out formula
                 cell_formula = nil
                 cell_formula_attr = {}
-                f = cell_xml.at('./f')
+                f = cell_xml.css('f').first
                 unless f.nil?
                   cell_formula = f.content
                   cell_formula_attr['t'] = f.attribute('t')
@@ -377,7 +377,7 @@ module RubyXL
                 # Get style
                 style_index = 0
                 unless @data_only
-                  s = cell_xml.at('./s')
+                  s = cell_xml.css('s').first
                   unless s.nil? || s.content.nil? || s.content == ''
                     style_index = s.content.to_i
                   end

@@ -146,13 +146,11 @@ module RubyXL
       @read_only = read_only
 
       # copy excel file to zip file in same directory
-      puts "[#{Time.now}] Uncompressing #{file_path}..." if @@debug
       dir_path = File.join(File.dirname(dir_path), make_safe_name(Time.now.to_s))
       zip_path = dir_path + '.zip'
       FileUtils.cp(file_path,zip_path)
       MyZip.new.unzip(zip_path,dir_path)
       File.delete(zip_path)
-      puts "[#{Time.now}] done." if @@debug
 
       # parse workbook.xml
       workbook_xml = Parser.parse_xml_file(File.join(dir_path, 'xl', 'workbook.xml'))
@@ -271,7 +269,6 @@ module RubyXL
     def self.parse_worksheet(wb, filename)
       worksheet = Worksheet.new(wb)
       
-      puts "[#{Time.now}] Parsing '#{filename}'..." if @@debug
       Reader.new(filename) do
         inside_element 'worksheet' do
           unless @data_only
@@ -323,9 +320,6 @@ module RubyXL
               end
 
               for_element 'c' do
-                puts "Found <c>: #{inner_xml}" if @@debug
-                puts "cell index: #{attribute('r')}" if @@debug
-                
                 # Scan attributes
                 cell_index = Parser.convert_to_index(attribute('r'))
                 data_type = attribute('t')
@@ -336,8 +330,6 @@ module RubyXL
                 cell_data = nil
                 v = cell_xml.css('v').first
                 unless v.nil?
-                  puts "Found <v>: #{v.content}" if @@debug
-
                   # Get cell data and coerce type
                   if data_type == 's' # shared string
                     cell_data = worksheet.workbook.shared_strings[Integer(v.content)]
@@ -376,7 +368,6 @@ module RubyXL
                 end
 
                 # Add Cell
-                puts "Adding cell [#{cell_index[0]}][#{cell_index[1]}]: #{cell_data}" if @@debug
                 worksheet.sheet_data[cell_index[0]][cell_index[1]] = Cell.new(worksheet, cell_index[0], cell_index[1],
                   cell_data, cell_formula, data_type, style_index, cell_formula_attr)
               end
@@ -384,15 +375,12 @@ module RubyXL
           end
         end
       end
-      puts "[#{Time.now}] done." if @@debug
 
       worksheet
     end
     
     # fill hashes for various styles
     def self.fill_styles(wb,style_hash)
-      puts "[#{Time.now}] Filling styles..." if @@debug
-      
       wb.num_fmts = style_hash[:numFmts]
 
       ###FONTS###
@@ -451,8 +439,6 @@ module RubyXL
           wb.borders[id][:count] += 1
         end
       end
-
-      puts "[#{Time.now}] done." if @@debug
     end
 
     def self.parse_options()
@@ -470,11 +456,9 @@ module RubyXL
 
       # Open, parse, and store it
       if File.exist?(path)
-        puts "[#{Time.now}] Parsing #{path}..." if @@debug
         File.open(path, 'rb') do |f|
           retval = Nokogiri::XML.parse(f, nil, nil, self.parse_options)
         end
-        puts "[#{Time.now}] done." if @@debug
       end
 
       retval
@@ -487,18 +471,14 @@ module RubyXL
         retval = {}
         entries = Dir.new(path).entries.reject { |f| File.directory?(File.join(path, f)) || f == ".DS_Store" }
         entries.each_with_index do |filename, i|
-          puts "[#{Time.now}] Reading #{path}..." if @@debug
           File.open(File.join(path, filename), 'rb') do |f|
             retval[i+1] = f.read
           end
-          puts "[#{Time.now}] done." if @@debug
         end
       elsif File.exists?(path)
-        puts "[#{Time.now}] Reading #{path}..." if @@debug
         File.open(path, 'rb') do |f|
           retval = f.read
         end
-        puts "[#{Time.now}] done." if @@debug
       end
       
       retval

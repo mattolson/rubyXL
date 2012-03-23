@@ -313,10 +313,10 @@ module RubyXL
                 # Parse contents
                 cell_xml = RubyXL::Parser.parse_xml(inner_xml)
 
+                # Get cell data and coerce type
                 cell_data = nil
                 v = cell_xml.css('v').first
                 unless v.nil?
-                  # Get cell data and coerce type
                   v_content = v.content ? v.content.strip : nil
                   if data_type == 's' # shared string
                     cell_data = wb.shared_strings[Integer(v_content)]
@@ -357,6 +357,8 @@ module RubyXL
                 # Add Cell
                 worksheet.sheet_data[cell_index[0]][cell_index[1]] = Cell.new(worksheet, cell_index[0], cell_index[1],
                   cell_data, cell_formula, data_type, style_index, cell_formula_attr)
+                
+                cell_xml = nil
               end
             end
           end

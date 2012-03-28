@@ -166,7 +166,6 @@ module RubyXL
       workbook_xml = nil
       
       puts "Done parsing workbook.xml." if @@debug
-      GC.start
 
       app_xml = Parser.parse_xml_file(File.join(dir_path, 'docProps', 'app.xml'))
       sheet_names = app_xml.css('TitlesOfParts vt|vector vt|lpstr').children
@@ -199,14 +198,12 @@ module RubyXL
       app_xml = nil
 
       puts "Done parsing app.xml." if @@debug
-      GC.start
 
       # extract everything we need from sharedStrings.xml
       wb.shared_strings = {}
       parse_shared_strings(wb, File.join(dir_path, 'xl', 'sharedStrings.xml'))
 
       puts "Done parsing sharedStrings.xml." if @@debug
-      GC.start
 
       # parse the worksheets
       for i in 0..@num_sheets-1
@@ -215,7 +212,6 @@ module RubyXL
         wb.worksheets[i].sheet_name = sheet_names[i].to_s
 
         puts "Done parsing #{filename}." if @@debug
-        GC.start
       end
 
       # cleanup

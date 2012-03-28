@@ -111,6 +111,8 @@ module RubyXL
     @read_only = false
     @debug = true
     
+    attr_accessor :data_only, :read_only
+    
     # converts cell string (such as "AA1") to matrix indices
     def self.convert_to_index(cell_string)
       index = Array.new(2)
@@ -153,8 +155,8 @@ module RubyXL
         raise 'Not .xlsx or .xlsm excel file'
       end
 
-      @data_only = data_only
-      @read_only = read_only
+      self.data_only = data_only
+      self.read_only = read_only
 
       # copy excel file to zip file in same directory
       dir_path = File.join(File.dirname(dir_path), self.make_safe_name(Time.now.to_s))
@@ -180,7 +182,7 @@ module RubyXL
       sheet_names = nil
       self.parse_xml_file(File.join(dir_path, 'docProps', 'app.xml')) do |app_xml|
         sheet_names = app_xml.css('TitlesOfParts vt|vector vt|lpstr').children
-        unless @data_only
+        unless self.data_only
           # extract everything we need from app.xml
           wb.company = app_xml.css('Company').children.to_s
           wb.application = app_xml.css('Application').children.to_s
@@ -189,14 +191,14 @@ module RubyXL
       end
 
       # parse styles
-      unless @data_only
+      unless self.data_only
         self.parse_xml_file(File.join(dir_path, 'xl', 'styles.xml')) do |styles_xml|
           self.fill_styles(wb, Hash.xml_node_to_hash(styles_xml.root))
         end
       end
 
       # extract everything we need from core.xml
-      unless @data_only
+      unless self.data_only
         self.parse_xml_file(File.join(dir_path, 'docProps', 'core.xml')) do |core_xml|
           wb.creator = core_xml.css('dc|creator').children.to_s
           wb.modifier = core_xml.css('cp|last_modified_by').children.to_s
@@ -206,7 +208,7 @@ module RubyXL
       end
 
       # preserve external links
-      unless @data_only
+      unless self.data_only
         wb.external_links = self.read_external_files(File.join(dir_path, 'xl', 'externalLinks'))
         wb.drawings = self.read_external_files(File.join(dir_path, 'xl', 'drawings'))
         wb.printer_settings = self.read_external_files(File.join(dir_path, 'xl', 'printerSettings'))
@@ -234,7 +236,7 @@ module RubyXL
     
     def self.parse_shared_strings(wb, filename)
       # Store the whole file for later in case we need to write it out
-      if !@read_only and File.exists?(filename)
+      if !self.read_only and File.exists?(filename)
         File.open(filename, 'rb') do |f|
           wb.shared_strings_XML = f.read
         end

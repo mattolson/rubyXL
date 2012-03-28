@@ -341,6 +341,7 @@ module RubyXL
                     end
                   end
                 end
+                v = nil
               
                 # Parse out formula
                 cell_formula = nil
@@ -352,6 +353,7 @@ module RubyXL
                   cell_formula_attr['ref'] = f.attribute('ref')
                   cell_formula_attr['si'] = f.attribute('si')
                 end
+                f = nil
 
                 # Get style
                 style_index = 0
@@ -360,6 +362,7 @@ module RubyXL
                   unless s.nil? || s.content.nil? || s.content == ''
                     style_index = s.content.to_i
                   end
+                  s = nil
                 end
 
                 # Add Cell

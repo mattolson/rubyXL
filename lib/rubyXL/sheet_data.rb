@@ -29,6 +29,7 @@ module RubyXL
     end
     
     def clear_row(x)
+      @data[x].clear
       @data[x] = nil
     end
 

@@ -111,7 +111,21 @@ module RubyXL
     @read_only = false
     @debug = true
     
-    attr_accessor :data_only, :read_only
+    def self.data_only
+      @data_only
+    end
+    
+    def self.data_only=(opt)
+      @data_only = opt
+    end
+
+    def self.read_only
+      @read_only
+    end
+    
+    def self.read_only=(opt)
+      @read_only = opt
+    end
     
     # converts cell string (such as "AA1") to matrix indices
     def self.convert_to_index(cell_string)

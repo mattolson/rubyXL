@@ -99,7 +99,7 @@ module RubyXL
 
   class Parser
     @@parsed_column_hash = {}
-    @@debug = false
+    @@debug = true
     
     # converts cell string (such as "AA1") to matrix indices
     def self.convert_to_index(cell_string)
@@ -164,6 +164,9 @@ module RubyXL
       wb.defined_names = workbook_xml.css('definedNames').to_s
       wb.date1904 = workbook_xml.css('workbookPr').attribute('date1904').to_s == '1'
       workbook_xml = nil
+      
+      puts "Done parsing workbook.xml." if @@debug
+      GC.start
 
       app_xml = Parser.parse_xml_file(File.join(dir_path, 'docProps', 'app.xml'))
       sheet_names = app_xml.css('TitlesOfParts vt|vector vt|lpstr').children
@@ -195,15 +198,24 @@ module RubyXL
       end
       app_xml = nil
 
+      puts "Done parsing app.xml." if @@debug
+      GC.start
+
       # extract everything we need from sharedStrings.xml
       wb.shared_strings = {}
       parse_shared_strings(wb, File.join(dir_path, 'xl', 'sharedStrings.xml'))
+
+      puts "Done parsing sharedStrings.xml." if @@debug
+      GC.start
 
       # parse the worksheets
       for i in 0..@num_sheets-1
         filename = 'sheet' + (i+1).to_s + '.xml'
         wb.worksheets[i] = Parser.parse_worksheet(wb, File.join(dir_path, 'xl', 'worksheets', filename))
         wb.worksheets[i].sheet_name = sheet_names[i].to_s
+
+        puts "Done parsing #{filename}." if @@debug
+        GC.start
       end
 
       # cleanup

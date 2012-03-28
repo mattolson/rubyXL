@@ -254,7 +254,7 @@ module RubyXL
                 inside_element 't' do
                   if value?
                     wb.shared_strings[i] = value
-                    wb.shared_strings[value] = i unless @read_only
+                    wb.shared_strings[value] = i unless RubyXL::Parser.read_only
                   end
                 end
               end
@@ -280,40 +280,40 @@ module RubyXL
       
       Reader.new(filename) do
         inside_element 'worksheet' do
-          unless @data_only
+          unless RubyXL::Parser.data_only
             for_element 'sheetViews' do
-              h = self.xml_to_hash(outer_xml)
+              h = RubyXL::Parser.xml_to_hash(outer_xml)
               worksheet.sheet_view = h[:sheetView] unless h.nil?
               worksheet.pane = worksheet.sheet_view[:pane] unless worksheet.sheet_view.nil?
             end
 
             for_element 'cols' do
-              h = self.xml_to_hash(outer_xml)
+              h = RubyXL::Parser.xml_to_hash(outer_xml)
               worksheet.cols = h[:col] unless h.nil?
             end
 
             for_element 'mergeCells' do
-              h = self.xml_to_hash(outer_xml)
+              h = RubyXL::Parser.xml_to_hash(outer_xml)
               worksheet.merged_cells = h[:mergeCell] unless h.nil?
             end
 
             for_element 'dataValidations' do
-              h = self.xml_to_hash(outer_xml)
+              h = RubyXL::Parser.xml_to_hash(outer_xml)
               worksheet.validations = h[:dataValidation] unless h.nil?
             end
 
             for_element 'extLst' do
-              worksheet.extLst = self.xml_to_hash(outer_xml)
+              worksheet.extLst = RubyXL::Parser.xml_to_hash(outer_xml)
             end
 
             for_element 'legacyDrawing' do
-              worksheet.legacy_drawing = self.xml_to_hash(outer_xml)
+              worksheet.legacy_drawing = RubyXL::Parser.xml_to_hash(outer_xml)
             end
           end
           
           inside_element 'sheetData' do
             inside_element 'row' do
-              if is_start? and !@data_only
+              if is_start? and !RubyXL::Parser.data_only
                 worksheet.row_styles[attribute('r')] = { :style => (attribute('s') || '0')  }
 
                 if !attribute('ht').nil? && !attribute('ht').strip == ""
@@ -367,7 +367,7 @@ module RubyXL
 
                   inside_element 's' do
                     # Set style index
-                    unless @data_only
+                    unless RubyXL::Parser.data_only
                       unless value.nil? || value == ''
                         worksheet.sheet_data[current_cell[0]][current_cell[1]].style_index = value.to_i
                       end
@@ -447,7 +447,7 @@ module RubyXL
 
     def self.parse_options()
       opts = Nokogiri::XML::ParseOptions::DEFAULT_XML
-      opts |= Nokogiri::XML::ParseOptions::COMPACT if @read_only
+      opts |= Nokogiri::XML::ParseOptions::COMPACT if RubyXL::Parser.read_only
       opts
     end
     

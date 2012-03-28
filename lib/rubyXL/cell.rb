@@ -1,8 +1,8 @@
 module RubyXL
   class Cell < PrivateClass
 
-    attr_accessor :row, :column, :datatype, :style_index, :formula, :worksheet
-    attr_reader :workbook,:formula_attributes
+    attr_accessor :row, :column, :datatype, :style_index, :formula, :formula_attributes, :worksheet
+    attr_reader :workbook
 
     def initialize(worksheet,row,column,value=nil,formula=nil,datatype='s',style_index=0, fmla_attr={})
       @worksheet = worksheet
@@ -18,6 +18,10 @@ module RubyXL
 
     def value
       is_date? ? @workbook.num_to_date(@value) : @value
+    end
+    
+    def value=(val)
+      @value = val
     end
 
     def is_date?

@@ -109,7 +109,7 @@ module RubyXL
     @parsed_column_hash = {}
     @data_only = false
     @read_only = false
-    @debug = true
+    @debug = false
     
     def self.data_only
       @data_only

@@ -1,13 +1,15 @@
 = rubyXL
 
-== To Install:
-  gem install rubyXL
-
 == To Use:
   require 'rubyXL' #assuming rubygems is already required
 
 === Parsing an existing workbook
   workbook = RubyXL::Parser.parse("path/to/Excel/file.xlsx")
+  This method takes two parameters:
+    data_only: boolean. If you don't care about cell formatting or formulas or any of that stuff and just
+                        want to read the values, pass true. This will speed up the parsing significantly.
+    read_only: boolean. If you don't care about writing the file back out, pass true. This reduces the
+                        memory footprint for large files significantly.
 
 === Creating a new Workbook
   workbook = RubyXL::Workbook.new

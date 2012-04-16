@@ -6,7 +6,8 @@ require File.expand_path(File.join(File.dirname(__FILE__),'Hash'))
 
 module RubyXL
   
-  # Slightly modified from https://gist.github.com/827475
+  # Modified from https://gist.github.com/827475
+  #
   # A small DSL for helping parsing documents using Nokogiri::XML::Reader. The
   # XML Reader is a good way to move a cursor through a (large) XML document fast,
   # but is not as cumbersome as writing a full SAX document handler. Read about
@@ -38,6 +39,7 @@ module RubyXL
   # every tag regardless of nesting. The only way to guarantee scope is by using
   # the `inside_element` method. This limits the parsing to the current or the named tag.
   # If tags are encountered multiple times, their blocks will be called multiple times.
+  #
   class Reader
     def initialize(filename, &block)
       @node = Nokogiri::XML::Reader(File.new(filename))
@@ -109,7 +111,6 @@ module RubyXL
     @parsed_column_hash = {}
     @data_only = false
     @read_only = false
-    @debug = false
     
     def self.data_only
       @data_only

@@ -30,6 +30,7 @@ Gem::Specification.new do |s|
     "lib/rubyXL/color.rb",
     "lib/rubyXL/parser.rb",
     "lib/rubyXL/private_class.rb",
+    "lib/rubyXL/sheet_data.rb",
     "lib/rubyXL/workbook.rb",
     "lib/rubyXL/worksheet.rb",
     "lib/rubyXL/writer/app_writer.rb",

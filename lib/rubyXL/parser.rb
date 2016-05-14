@@ -111,21 +111,27 @@ module RubyXL
     @parsed_column_hash = {}
     @data_only = false
     @read_only = false
+    @read_sheets = 0
     
     def self.data_only
       @data_only
-    end
-    
+    end    
     def self.data_only=(opt)
       @data_only = opt
     end
-
     def self.read_only
       @read_only
     end
     
     def self.read_only=(opt)
       @read_only = opt
+    end
+    
+    def self.read_sheets
+      @read_sheets
+    end
+    def self.read_sheets=(opt)
+      @read_sheets = opt
     end
     
     # converts cell string (such as "AA1") to matrix indices
@@ -162,17 +168,21 @@ module RubyXL
     #   However, using this option will result in date-formatted cells being interpreted as numbers
     # read_only disables modification or writing of the file, but results in a much
     #   lower memory footprint
-    def self.parse(file_path, data_only=false, read_only=false)
+    def self.parse(file_path, data_only=false, read_only=false, read_sheets=0)
       # ensure we are given a xlsx/xlsm file
       if file_path =~ /(.+)\.xls(x|m)/
         dir_path = $1.to_s
       else
         raise 'Not .xlsx or .xlsm excel file'
       end
-
+      # puts "Sheets: #{read_sheets}"
       self.data_only = data_only
       self.read_only = read_only
-
+      self.read_sheets = read_sheets
+      # puts "-"*100
+      # puts "Sheets: #{self.read_sheets}"
+      # puts "-"*100
+      
       # copy excel file to zip file in same directory
       dir_path = File.join(File.dirname(dir_path), self.make_safe_name(Time.now.to_s))
       zip_path = dir_path + '.zip'
@@ -236,10 +246,20 @@ module RubyXL
       self.parse_shared_strings(wb, File.join(dir_path, 'xl', 'sharedStrings.xml'))
 
       # parse the worksheets
-      for i in 0..@num_sheets-1
-        filename = 'sheet' + (i+1).to_s + '.xml'
-        wb.worksheets[i] = self.parse_worksheet(wb, File.join(dir_path, 'xl', 'worksheets', filename))
-        wb.worksheets[i].sheet_name = sheet_names[i].to_s
+      # puts read_sheets
+      if read_sheets==0
+        # puts 'all sheets'
+        for i in 0..@num_sheets-1
+          filename = 'sheet' + (i+1).to_s + '.xml'
+          wb.worksheets[i] = self.parse_worksheet(wb, File.join(dir_path, 'xl', 'worksheets', filename))
+          wb.worksheets[i].sheet_name = sheet_names[i].to_s
+        end
+      else
+        for i in read_sheets.to_s.split(",")
+          filename = 'sheet' + i + '.xml'
+          wb.worksheets[i.to_i-1] = self.parse_worksheet(wb, File.join(dir_path, 'xl', 'worksheets', filename))
+          wb.worksheets[i.to_i-1].sheet_name = sheet_names[i.to_i-1].to_s
+        end
       end
 
       # cleanup
